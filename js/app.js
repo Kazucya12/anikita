@@ -185,4 +185,29 @@ document.addEventListener("keydown",e=>{
   if(e.key==="/"&&!typing){e.preventDefault();$("#q").focus()}
   if(e.key==="Escape")closeDetail();
 });
-loadConfig().then(()=>{renderChips();updateFav();loadHero();loadSchedule();loadGrid()});
+
+/* ===== POKEMON SPOTLIGHT (PokeAPI lewat proxy /api/poke) ===== */
+async function poke(p){
+  const r=await fetch("/api/poke"+p);
+  if(!r.ok)throw new Error("Poke "+r.status);
+  return r.json();
+}
+async function loadPoke(){
+  const el=$("#pokeBox");
+  el.innerHTML='<div class="empty">Memuat…</div>';
+  try{
+    const f=await poke("/pokemon-form/132/");
+    const ab=await poke("/ability/150/");
+    const mv=await poke("/move/144/");
+    const en=o=>((o.effect_entries||[]).find(x=>x.language.name==="en")||{}).short_effect||"–";
+    el.innerHTML=`<div class="poke">
+      <img src="${esc(f.sprites.front_default||"")}" alt="${esc(f.name)}">
+      <div class="poke-info">
+        <h3>${esc(f.pokemon.name)}</h3>
+        <div class="poke-tags">${f.types.map(t=>`<span>${esc(t.type.name)}</span>`).join("")}</div>
+        <p><b>Ability: ${esc(ab.name)}</b><br>${esc(en(ab))}</p>
+        <p><b>Move: ${esc(mv.name)}</b> • ${esc(mv.type.name)} • PP ${mv.pp||"–"} • Power ${mv.power||"–"}<br>${esc(en(mv))}</p>
+      </div></div>`;
+  }catch(e){el.innerHTML='<div class="empty">Data Pokémon gagal dimuat.</div>'}
+}
+loadConfig().then(()=>{renderChips();updateFav();loadHero();loadSchedule();loadGrid();loadPoke()});
