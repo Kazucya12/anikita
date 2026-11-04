@@ -105,6 +105,15 @@ section{margin-bottom:44px;scroll-margin-top:80px}
 .skel{background:linear-gradient(90deg,var(--card),var(--card2),var(--card));background-size:200% 100%;animation:sh 1.2s infinite;border-radius:16px;aspect-ratio:2/3}
 @keyframes sh{to{background-position:-200% 0}}
 
+.poke{display:flex;gap:22px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+.poke img{width:140px;height:140px;image-rendering:pixelated;background:var(--card2);border-radius:16px}
+.poke-info{flex:1;min-width:240px;display:grid;gap:10px}
+.poke-info h3{font-size:1.3rem;text-transform:capitalize}
+.poke-info p{color:var(--muted);font-size:.88rem;line-height:1.6}
+.poke-info b{color:var(--text)}
+.poke-tags{display:flex;gap:8px;flex-wrap:wrap}
+.poke-tags span{background:var(--card2);padding:5px 12px;border-radius:99px;font-size:.76rem;font-weight:700;color:var(--accent);text-transform:capitalize}
+
 .modal{position:fixed;inset:0;z-index:200;background:rgba(5,7,12,.78);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
 .modal.open{display:flex}
 .detail-panel{background:var(--bg2);border:1px solid var(--line);border-radius:24px;max-width:860px;width:100%;max-height:92vh;overflow-y:auto;position:relative;animation:pop .25s ease}
@@ -188,9 +197,13 @@ footer b{color:var(--text)}
     <div class="grid" id="grid"></div>
     <button class="btn btn-primary more" id="moreBtn" hidden>Muat lebih banyak</button>
   </section>
+  <section id="pokemon">
+    <h2 class="sec-title">Pokémon Spotlight</h2>
+    <div id="pokeBox"></div>
+  </section>
 </main>
 
-<footer><b>AniKita</b> — data dari MyAnimeList lewat Jikan API.<br>Episode ditonton lewat platform resmi; trailer dan link resmi tersedia di halaman detail.</footer>
+<footer><b>AniKita</b> — data dari MyAnimeList lewat Jikan API dan data Pokémon dari PokeAPI.<br>Episode ditonton lewat platform resmi; trailer dan link resmi tersedia di halaman detail.</footer>
 
 <div class="modal" id="detailModal"><div class="detail-panel"><button class="modal-close" id="closeDetail" aria-label="Tutup">✕</button><div id="detailBody"></div></div></div>
 <div class="toast-wrap" id="toastWrap"></div>
