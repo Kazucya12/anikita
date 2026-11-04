@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/jikan/:path*", "destination": "/api/jikan?p=/:path*" }
+    { "source": "/api/jikan/:path*", "destination": "/api/jikan?p=/:path*" },
+    { "source": "/api/poke/:path*", "destination": "/api/poke?p=/:path*" }
   ]
 }
