@@ -1,6 +1,6 @@
 /* Pengaturan (API, hari, genre, urutan) dimuat dari data/config.json. Ubah "api" di file itu untuk memakai proxy/API sendiri. */
 let API,PROXY,BASE,DAYS,DAYEN,GEN,SORTDIR;
-const DEFAULT_CFG={"api": "https://api.jikan.moe/v4", "proxy": "/api/jikan", "days": ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"], "daysEn": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], "genres": [["", "Semua"], ["1", "Action"], ["2", "Adventure"], ["4", "Comedy"], ["8", "Drama"], ["10", "Fantasy"], ["14", "Horror"], ["7", "Mystery"], ["22", "Romance"], ["24", "Sci-Fi"], ["36", "Slice of Life"], ["30", "Sports"], ["37", "Supernatural"]], "sortDir": {"score": "desc", "popularity": "asc", "start_date": "desc", "title": "asc"}};
+const DEFAULT_CFG={"api": "https://api.jikan.moe/v4", "proxy": "https://throbbing-bush-1d5d.akbarzenito.workers.dev", "days": ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"], "daysEn": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"], "genres": [["", "Semua"], ["1", "Action"], ["2", "Adventure"], ["4", "Comedy"], ["8", "Drama"], ["10", "Fantasy"], ["14", "Horror"], ["7", "Mystery"], ["22", "Romance"], ["24", "Sci-Fi"], ["36", "Slice of Life"], ["30", "Sports"], ["37", "Supernatural"]], "sortDir": {"score": "desc", "popularity": "asc", "start_date": "desc", "title": "asc"}};
 async function loadConfig(){
   let c=DEFAULT_CFG;
   try{const r=await fetch("data/config.json");if(r.ok)c=await r.json()}catch(e){}
@@ -39,6 +39,7 @@ function toast(m){const d=document.createElement("div");d.className="toast";d.te
 const fail=(el,e)=>{el.innerHTML='<div class="empty">'+esc(errMsg(e))+"</div>"};
 
 let fav=ls.get("ak_fav",[]);
+let watched=ls.get("ak_watched",{});
 const state={q:"",genre:"",status:"",sort:"score",page:1,more:false,mode:"all"};
 let list=[],heroList=[],heroIdx=0,heroTimer,day=(new Date().getDay()+6)%7,detailId=null;
 
@@ -132,6 +133,21 @@ function favBtn(b,id){const on=fav.some(f=>f.id===id);b.textContent=on?"♥ Di W
 $("#navFav").addEventListener("click",e=>{e.preventDefault();state.mode=state.mode==="fav"?"all":"fav";$("#navLinks").classList.remove("open");state.mode==="all"?loadGrid():renderGrid();$("#jelajahi").scrollIntoView()});
 $("#navAll").addEventListener("click",()=>{if(state.mode==="fav"){state.mode="all";loadGrid()}$("#navLinks").classList.remove("open")});
 
+/* ===== PENANDA EPISODE DITONTON (disimpan di browser) ===== */
+function renderEps(id,e){
+  const w=watched[id]||[],box=$("#dEps");if(!box)return;
+  const n=w.filter(k=>e.some(x=>x.mal_id===k)).length;
+  $("#epN").textContent=e.length?`(${n}/${e.length} ditonton)`:"";
+  box.innerHTML=e.length?e.map(x=>{const on=w.includes(x.mal_id);return `<div class="ep-row${on?" seen":""}" data-ep="${x.mal_id}"><b>${x.mal_id}</b><span>${esc(x.title||"Episode "+x.mal_id)}</span><i class="chk">${on?"✓":"○"}</i></div>`}).join(""):'<div class="ep-row"><span>Belum ada data episode.</span></div>';
+  box.onclick=ev=>{
+    const r=ev.target.closest("[data-ep]");if(!r)return;
+    const k=+r.dataset.ep,a=watched[id]||(watched[id]=[]),i=a.indexOf(k);
+    i>=0?a.splice(i,1):a.push(k);
+    if(!a.length)delete watched[id];
+    ls.set("ak_watched",watched);renderEps(id,e);
+  };
+}
+
 /* ===== DETAIL ===== */
 async function openDetail(id){
   detailId=id;$("#detailBody").innerHTML='<div class="empty" style="padding:90px 20px">Memuat…</div>';
@@ -167,8 +183,7 @@ async function openDetail(id){
     api(`/anime/${id}/episodes`).then(r=>{
       if(detailId!==id)return;
       const e=r.data||[];
-      $("#epN").textContent=e.length?`(${e.length}${r.pagination&&r.pagination.has_next_page?"+":""})`:"";
-      $("#dEps").innerHTML=e.length?e.map(x=>`<div class="ep-row"><b>${x.mal_id}</b><span>${esc(x.title||"Episode "+x.mal_id)}</span></div>`).join(""):'<div class="ep-row"><span>Belum ada data episode.</span></div>';
+      renderEps(id,e);
     }).catch(()=>{if(detailId===id)$("#dEps").innerHTML='<div class="ep-row"><span>Daftar episode gagal dimuat.</span></div>'});
   }catch(e){if(detailId===id)fail($("#detailBody"),e)}
 }
