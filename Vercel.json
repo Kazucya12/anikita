@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/jikan/:path*", "destination": "/api/jikan?p=/:path*" }
+  ]
+}
