@@ -21,7 +21,7 @@ async function api(p){
   for(const b of bases){
     for(let i=0;i<3;i++){
       const t=Math.max(Date.now(),last+400);last=t;await sleep(t-Date.now());
-      let r;try{r=await fetch(b+p)}catch(e){netErr=true;break}
+      let r;try{r=await fetch(b+p,{signal:AbortSignal.timeout(10000)})}catch(e){netErr=true;break}
       if(r.status===429){await sleep(1500);continue}
       if(r.status===404||r.status>=500){netErr=true;break}
       if(!r.ok)throw new Error("Jikan error "+r.status);
@@ -188,7 +188,7 @@ document.addEventListener("keydown",e=>{
 
 /* ===== POKEMON SPOTLIGHT (PokeAPI lewat proxy /api/poke) ===== */
 async function poke(p){
-  const r=await fetch("/api/poke"+p);
+  const r=await fetch("/api/poke"+p,{signal:AbortSignal.timeout(10000)});
   if(!r.ok)throw new Error("Poke "+r.status);
   return r.json();
 }
