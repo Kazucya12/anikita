@@ -1,34 +1,39 @@
-// api/index.js
-import express from "express";
-import axios from "axios";
+const express = require("express");
+const axios = require("axios");
 
-// Impor modul scraper anime kamu (sesuaikan path foldernya di proyek)
-import kuramanime from "../source/kuramanime/kuramanime.js";
-import nanime from "../source/nanime/nanime.js";
-import kuronime from "../source/kuronime/kuronime.js";
-import otakudesu from "../source/otakudesu/otakudesu.js";
+// Menggunakan require sesuai format asli file scraper kamu
+const kuramanime = require("../source/kuramanime/kuramanime");
+const nanime = require("../source/nanime/nanime");
+const kuronime = require("../source/kuronime/kuronime");
+const otakudesu = require("../source/otakudesu/otakudesu");
 
 const app = express();
 
-// Konfigurasi Axios agar tidak throw error pada status non-2xx
+// Konfigurasi Axios
 axios.defaults.validateStatus = () => true;
-
 app.use(express.json());
 
-// Root endpoint API
+// Endpoint Cek Status API
 app.get("/", (req, res) => {
     res.json({
         status: "success",
-        message: "Anikita API Scraper Ready 🚀",
-        endpoints: ["/api/kuramanime", "/api/nanime", "/api/kuronime", "/api/otakudesu"]
+        message: "Anikita API Scraper Ready 🚀"
     });
 });
 
-// Routing Scraper Anime
-app.use("/kuramanime", kuramanime);
-app.use("/nanime", nanime);
-app.use("/kuronime", kuronime);
-app.use("/otakudesu", otakudesu);
+// Daftarkan router dengan dukungan ganda (dengan atau tanpa awalan /api)
+// agar tidak terjadi error 404 / gagal muat di Vercel
+const animeRoutes = [
+    { path: "/kuramanime", router: kuramanime },
+    { path: "/nanime", router: nanime },
+    { path: "/kuronime", router: kuronime },
+    { path: "/otakudesu", router: otakudesu }
+];
 
-// Ekspor app agar bisa dibaca Vercel Serverless
-export default app;
+animeRoutes.forEach(({ path, router }) => {
+    app.use(path, router);
+    app.use(`/api${path}`, router);
+});
+
+// Wajib ekspor menggunakan module.exports untuk CommonJS di Vercel
+module.exports = app;
