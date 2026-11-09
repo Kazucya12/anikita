@@ -1,6 +1,7 @@
 {
+  "version": 2,
   "rewrites": [
-    { "source": "/api/jikan/:path*", "destination": "/api/jikan?p=/:path*" },
-    { "source": "/api/poke/:path*", "destination": "/api/poke?p=/:path*" }
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
