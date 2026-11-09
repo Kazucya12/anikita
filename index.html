@@ -70,6 +70,51 @@ let hls;
 const OFF=m=>{const L=(m.externalLinks||[]).filter(x=>x.type==='STREAMING');return L.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px">'+L.map(x=>`<a class="btn s" target="_blank" rel="noopener" href="${E(x.url)}">${E(x.site)} ↗</a>`).join('')+'</div>':'<div class="mu" style="margin-top:8px">Belum ada link resmi di AniList.</div>'};
 const TR=m=>m.trailer&&m.trailer.site==='youtube'?`<button class="btn" id="tr">▶ Trailer</button> `:'';
 
+ 
+const SANKA_API = 'https://www.sankavollerei.web.id';
+
+async function sankaFetch(path){
+  const res = await fetch(SANKA_API + path);
+  if(!res.ok) throw Error('Sankavollerei API: '+res.status);
+
+  const json = await res.json();
+
+  if(json.status !== 'success' && json.ok !== true){
+    throw Error(json.message || 'API gagal');
+  }
+
+  return json.data;
+}
+
+// Ambil detail episode
+async function sankaEpisode(slug){
+  return sankaFetch('/anime/episode/'+encodeURIComponent(slug));
+}
+
+// Ambil server berdasarkan serverId
+async function sankaServer(serverId){
+  return sankaFetch('/anime/server/'+encodeURIComponent(serverId));
+}
+
+// Tampilkan pilihan server dan kualitas
+function sankaServerUI(data){
+  const qualities = data.server?.qualities || [];
+
+  return qualities.map(q => `
+    <section style="margin:12px 0">
+      <b>${E(q.title)}</b>
+      <div class="chips">
+        ${(q.serverList||[]).map(s=>`
+          <button class="chip"
+            data-server="${E(s.serverId)}">
+            ${E(s.title)}
+          </button>
+        `).join('')}
+      </div>
+    </section>
+  `).join('');
+}
+ 
 let otakuCache=null;
 async function otakuData(){
   if(otakuCache)return otakuCache;
