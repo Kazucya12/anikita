@@ -1,0 +1,264 @@
+{
+  "ongoing": {
+    "href": "/anime/ongoing-anime",
+    "otakudesuUrl": "https://otakudesu.blog/ongoing-anime/",
+    "animeList": [
+      {
+        "title": "Kanata kara",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/159816.jpg",
+        "episodes": 6,
+        "releaseDay": "Senin",
+        "latestReleaseDate": "09 Nov",
+        "animeId": "kanata-kara-sub-indo",
+        "href": "/anime/anime/kanata-kara-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/kanata-kara-sub-indo/"
+      },
+      {
+        "title": "Shinja Zero no Megami-sama to Hajimeru Isekai Kouryaku",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/159863.jpg",
+        "episodes": 5,
+        "releaseDay": "Senin",
+        "latestReleaseDate": "09 Nov",
+        "animeId": "shinja-zero-megami-hajimeru-isekai-kouryaku-sub-indo",
+        "href": "/anime/anime/shinja-zero-megami-hajimeru-isekai-kouryaku-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/shinja-zero-megami-hajimeru-isekai-kouryaku-sub-indo/"
+      },
+      {
+        "title": "Tank Chair",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/Tank-Chair.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "09 Nov",
+        "animeId": "tank-chair-sub-indo",
+        "href": "/anime/anime/tank-chair-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/tank-chair-sub-indo/"
+      },
+      {
+        "title": "Yowaki Max",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/159886.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "09 Nov",
+        "animeId": "yowaki-max-sub-indo",
+        "href": "/anime/anime/yowaki-max-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/yowaki-max-sub-indo/"
+      },
+      {
+        "title": "Tensei Kizoku, Kantei Skill de Nariagaru Season 3",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/159859.jpg",
+        "episodes": 7,
+        "releaseDay": "Senin",
+        "latestReleaseDate": "09 Nov",
+        "animeId": "tensei-skill-nariagaru-s3-sub-ind",
+        "href": "/anime/anime/tensei-skill-nariagaru-s3-sub-ind",
+        "otakudesuUrl": "https://otakudesu.blog/anime/tensei-skill-nariagaru-s3-sub-ind/"
+      },
+      {
+        "title": "Tempal: Item no Chikara",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/160022.jpg",
+        "episodes": 7,
+        "releaseDay": "Senin",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "tempal-chikara-sub-indo",
+        "href": "/anime/anime/tempal-chikara-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/tempal-chikara-sub-indo/"
+      },
+      {
+        "title": "Seitokai ni mo Ana wa Aru!",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/160134.jpg",
+        "episodes": 6,
+        "releaseDay": "Random",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "seitokai-ana-aru-sub-indo",
+        "href": "/anime/anime/seitokai-ana-aru-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/seitokai-ana-aru-sub-indo/"
+      },
+      {
+        "title": "Saikyosoubi",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/160053.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "saikyosoubi-sub-indo",
+        "href": "/anime/anime/saikyosoubi-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/saikyosoubi-sub-indo/"
+      },
+      {
+        "title": "Ao Ashi Season 2",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/158726.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "aoashi-s2-sub-indo",
+        "href": "/anime/anime/aoashi-s2-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/aoashi-s2-sub-indo/"
+      },
+      {
+        "title": "Yozakura-san Chi no Daisakusen Season 2 Part 2",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/160135.jpg",
+        "episodes": 5,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "yozakura-daisakusen-s2p2-sub-indo",
+        "href": "/anime/anime/yozakura-daisakusen-s2p2-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/yozakura-daisakusen-s2p2-sub-indo/"
+      },
+      {
+        "title": "Ao no Hako Season 2",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/160267.jpg",
+        "episodes": 5,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "ao-hako-s2-sub-indo",
+        "href": "/anime/anime/ao-hako-s2-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/ao-hako-s2-sub-indo/"
+      },
+      {
+        "title": "Vertex Force",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/160012.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "vrtex-force-sub-indo",
+        "href": "/anime/anime/vrtex-force-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/vrtex-force-sub-indo/"
+      },
+      {
+        "title": "Kashita Maryoku wa \"Revo Barai\" de Kyousei Choushuu",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/159735.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "kashita-evo-barai-choushuu-sub-indo",
+        "href": "/anime/anime/kashita-evo-barai-choushuu-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/kashita-evo-barai-choushuu-sub-indo/"
+      },
+      {
+        "title": "Magical★Explorer",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/160106.jpg",
+        "episodes": 7,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "magic-explor-sub-indo",
+        "href": "/anime/anime/magic-explor-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/magic-explor-sub-indo/"
+      },
+      {
+        "title": "Black Clover Season 2",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/Black-Clover-Season-2-Sub.jpg",
+        "episodes": 6,
+        "releaseDay": "Minggu",
+        "latestReleaseDate": "08 Nov",
+        "animeId": "blk-clver-s2-sub-indo",
+        "href": "/anime/anime/blk-clver-s2-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/blk-clver-s2-sub-indo/"
+      }
+    ]
+  },
+  "completed": {
+    "href": "/anime/complete-anime",
+    "otakudesuUrl": "https://otakudesu.blog/complete-anime/",
+    "animeList": [
+      {
+        "title": "Super no Ura de Yani Suu Futari",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Super-no-Ura-de-Yani-Suu-Futari-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "8.20",
+        "lastReleaseDate": "03 Nov",
+        "animeId": "super-yani-suu-futari-sub-indo",
+        "href": "/anime/anime/super-yani-suu-futari-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/super-yani-suu-futari-sub-indo/"
+      },
+      {
+        "title": "Saijo no Osewa",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Saijo-no-Osewa-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "6.88",
+        "lastReleaseDate": "14 Okt",
+        "animeId": "saijo-osewa-sub-indo",
+        "href": "/anime/anime/saijo-osewa-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/saijo-osewa-sub-indo/"
+      },
+      {
+        "title": "World Is Dancing",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/World-Is-Dancing-Sub-Indo.jpg",
+        "episodes": 13,
+        "score": "7.27",
+        "lastReleaseDate": "14 Okt",
+        "animeId": "world-dancing-sub-indo",
+        "href": "/anime/anime/world-dancing-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/world-dancing-sub-indo/"
+      },
+      {
+        "title": "Otome Kaijuu Carameliser",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/Otome-Kaijuu-Carameliser-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "7.49",
+        "lastReleaseDate": "12 Okt",
+        "animeId": "kaijuu-carameliser-sub-indo",
+        "href": "/anime/anime/kaijuu-carameliser-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/kaijuu-carameliser-sub-indo/"
+      },
+      {
+        "title": "Sayonara Lara",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Sayonara-Lara-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "7.65",
+        "lastReleaseDate": "12 Okt",
+        "animeId": "sayonara-lara-sub-indo",
+        "href": "/anime/anime/sayonara-lara-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/sayonara-lara-sub-indo/"
+      },
+      {
+        "title": "Oni no Hanayome",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/10/Oni-no-Hanayome-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "6.82",
+        "lastReleaseDate": "03 Okt",
+        "animeId": "oni-hanayome-sub-indo",
+        "href": "/anime/anime/oni-hanayome-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/oni-hanayome-sub-indo/"
+      },
+      {
+        "title": "Hyakkano Season 3",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Hyakkano-Season-3-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "8.08",
+        "lastReleaseDate": "30 Sep",
+        "animeId": "hyakkano-s3-sub-ind",
+        "href": "/anime/anime/hyakkano-s3-sub-ind",
+        "otakudesuUrl": "https://otakudesu.blog/anime/hyakkano-s3-sub-ind/"
+      },
+      {
+        "title": "Ryoumin 0-nin Start no Henkyou Ryoushu-sama",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Ryoumin-0-nin-Start-no-Henkyou-Ryoushu-sama-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "6.84",
+        "lastReleaseDate": "28 Sep",
+        "animeId": "ryoumin-ryoushu-sub-indo",
+        "href": "/anime/anime/ryoumin-ryoushu-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/ryoumin-ryoushu-sub-indo/"
+      },
+      {
+        "title": "Hanazakari no Kimitachi e Season 2",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Hanazakari-no-Kimitachi-e-Season-2-Sub-Indo.jpg",
+        "episodes": 13,
+        "score": "7.25",
+        "lastReleaseDate": "26 Sep",
+        "animeId": "hanazakari-kimitachi-s2-sub-indo",
+        "href": "/anime/anime/hanazakari-kimitachi-s2-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/hanazakari-kimitachi-s2-sub-indo/"
+      },
+      {
+        "title": "Lv999 no Murabito",
+        "poster": "https://otakudesu.blog/wp-content/uploads/2026/09/Lv999-no-Murabito-Sub-Indo.jpg",
+        "episodes": 12,
+        "score": "6.12",
+        "lastReleaseDate": "26 Sep",
+        "animeId": "lv999-murabito-sub-indo",
+        "href": "/anime/anime/lv999-murabito-sub-indo",
+        "otakudesuUrl": "https://otakudesu.blog/anime/lv999-murabito-sub-indo/"
+      }
+    ]
+  }
+}
