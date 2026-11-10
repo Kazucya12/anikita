@@ -66,7 +66,6 @@ header{padding-top:max(10px,env(safe-area-inset-top))}
 main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 .sk{background:linear-gradient(90deg,var(--b2),var(--b3),var(--b2));background-size:200% 100%;animation:shm 1.2s infinite;border-radius:12px}
 @keyframes shm{to{background-position:-200% 0}}
-.c{content-visibility:auto;contain-intrinsic-size:auto 230px}
 .im{position:relative}
 .bd{position:absolute;left:6px;top:6px;background:rgba(14,15,26,.88);border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700}
 .bd.b2{top:auto;bottom:6px;background:linear-gradient(90deg,var(--ac),var(--ac2))}
@@ -75,11 +74,14 @@ main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 .eps button{min-height:40px}.chip{min-height:36px}
 #sanka-servers{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}#sanka-servers .chip{white-space:nowrap;flex:0 0 auto}
 @media(max-width:560px){.d .cv{width:130px}}
+.sm{background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:0 10px;height:38px;font-size:14px}.sm option{color:#000}#sf{gap:6px}
+.hr{display:flex;align-items:center;gap:10px;width:100%}.seg{display:flex;flex:1;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:3px}.seg a{flex:1;text-align:center;padding:7px 0;border-radius:99px;color:var(--mu);font-weight:700}.seg a.on{background:linear-gradient(90deg,var(--ac),var(--ac2));color:#fff}#sf{flex:1 1 100%;max-width:none}
 </style>
 </head>
 <body>
-<header><a class="logo" href="#/">KUMORI</a><form id="sf"><input id="si" placeholder="Cari anime…"></form><a class="ib" href="#/set" aria-label="Pengaturan">⚙</a>
-<nav id="nv"><a href="#/">Anime</a><a href="#/m">Manga</a><i class="sp"></i><a href="#/o/ongoing">Ongoing</a><a href="#/o/completed">Complete</a><a href="#/o/list">Daftar Anime</a><i class="sp"></i><a href="#/o/genres">Genre</a><a href="#/o/schedule">Jadwal</a></nav></header>
+<header><div class="hr"><a class="logo" href="#/">KUMORI</a><div class="seg"><a id="ta" href="#/">Anime</a><a id="tm" href="#/m">Manga</a></div><a class="ib" href="#/set" aria-label="Pengaturan">⚙</a></div>
+<form id="sf"><input id="si" placeholder="Cari anime…"></form>
+<nav id="nv"><a href="#/o/ongoing">Ongoing</a><a href="#/o/completed">Complete</a><a href="#/o/list">Daftar Anime</a><i class="sp"></i><a href="#/o/genres">Genre</a><a href="#/o/schedule">Jadwal</a></nav></header>
 <main id="app"></main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
 <script>
@@ -100,7 +102,7 @@ const hist=()=>{try{return JSON.parse(localStorage.getItem('kw'))||{}}catch{retu
 const SY=t=>`<div class="sec"><h3 class="sh">Sinopsis</h3><div class="sy c3">${t||'<span class="mu">Sinopsis belum tersedia.</span>'}</div><button class="lk">Baca selengkapnya</button></div>`;
 document.addEventListener('click',e=>{const b=e.target.closest('.lk');if(b){const o=b.previousElementSibling.classList.toggle('c3');b.textContent=o?'Baca selengkapnya':'Tutup'}});
 const SK=`<div class="g">${'<div class="c"><div class="im sk"></div><div class="nm sk" style="height:14px;margin-top:8px"></div></div>'.repeat(12)}</div>`;
-const setNav=()=>{const h=location.hash||'#/';document.querySelectorAll('#nv a').forEach(a=>{const k=a.getAttribute('href');a.classList.toggle('on',k==='#/'?(h==='#/'||/^#\/(a|s)(\/|$)/.test(h)):h.startsWith(k))})};
+const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#nv').style.display=mg?'none':'flex';$('#si').placeholder=mg?'Cari manga…':'Cari anime…';document.querySelectorAll('#nv a').forEach(a=>{const k=a.getAttribute('href');a.classList.toggle('on',k==='#/'?(h==='#/'||/^#\/(a|s)(\/|$)/.test(h)):h.startsWith(k))})};
 function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,10);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/a/${id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${x.e}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
 // Sanka proxy: API upstream dipanggil dari Vercel Function agar tidak terkena CORS.
 async function sankaFetch(path){
@@ -156,12 +158,13 @@ async function sankaAutoEpisode(titles,ep){
     if(!data)continue;
     const results=walkObjects(data).filter(o=>o.title&&o.animeId);
     if(!results.length)continue;
-    results.forEach(o=>{o._sc=sankaScore(o.title,titles)});
+    results.forEach(o=>{o._sc=sankaScore(o.title,titles)-(/batch|episode\s*\d/i.test(o.title)?0.3:0)});
     results.sort((x,y)=>y._sc-x._sc);
     if(!best||results[0]._sc>best._sc)best=results[0];
     if(best._sc>=0.5)break;
   }
   if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan di katalog Samehadaku melalui Sanka.');
+  window.shUrl=best.samehadakuUrl||'';
   const detail=await sankaFetch(SRC.sh.anime+encodeURIComponent(best.animeId));
   const eps=walkObjects(detail).filter(o=>o.episodeId);
   const re=new RegExp('(episode|ep)\\.?\\s*0*'+ep+'(?!\\d)','i');
@@ -170,8 +173,7 @@ async function sankaAutoEpisode(titles,ep){
     ||eps.find(o=>new RegExp('-episode-0*'+ep+'$','i').test(String(o.episodeId)));
   if(hit)return String(hit.episodeId);
   // detail tidak memuat daftar episode: tebak dari pola ID Samehadaku
-  if(!eps.length)return best.animeId+'-episode-'+ep;
-  throw Error('Episode '+ep+' tidak ditemukan pada daftar episode Samehadaku.');
+  return best.animeId+'-episode-'+ep;
 }
 const sankaEpisode=(slug,src='sh')=>sankaFetch(SRC[src].ep+encodeURIComponent(slug));
 const sankaServer=(id,src='sh')=>sankaFetch(SRC[src].sv+encodeURIComponent(id));
@@ -235,7 +237,7 @@ async function playSankaEpisode(slug,title,src='sh'){
         if(!u)throw Error('Server tidak mengembalikan URL video yang dikenali.');renderSankaSource(box,u);
       }catch(e){$('#sanka-status').textContent='Gagal memuat server: '+e.message;}
     };
-  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E(SRC[src].site)}">Buka sumber ${E(SRC[src].name)}</a></div>`;}
+  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka di ${E(SRC[src].name)} ↗</a></div>`;}
 }
 function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
   if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
@@ -259,198 +261,3 @@ async function otakuData(){
 }
 const oLink=a=>(otakuCache&&otakuCache.detail[a.animeId])?`href="#/o/d/${encodeURIComponent(a.animeId)}"`:`href="${E(a.otakudesuUrl)}" target="_blank" rel="noopener noreferrer"`;
 function otakuCard(a,completed){
-  const meta=completed
-    ? `${a.episodes||'?'} episode${a.score?' · ★ '+a.score:''}${a.lastReleaseDate?' · '+a.lastReleaseDate:''}`
-    : `${a.episodes||'?'} episode${a.releaseDay?' · '+a.releaseDay:''}${a.latestReleaseDate?' · '+a.latestReleaseDate:''}`;
-  return `<a class="c ota-card" ${oLink(a)}>
-    <div class="im" style="background-image:url('${E(a.poster)}')"></div>
-    <div class="nm">${E(a.title)}</div><div class="ota-meta">${E(meta)}</div>
-  </a>`;
-}
-
-async function otakuSchedulePage(){
-  const r=await fetch('/data/otakudesu-schedule.json');
-  if(!r.ok)throw Error('Data jadwal anime tidak bisa dimuat ('+r.status+')');
-  const days=await r.json();
-  app.innerHTML=`<div class="ota-head"><h2>🗓️ Jadwal Anime</h2><span class="mu">Senin–Minggu</span></div>
-    ${days.map(day=>`<section style="margin:18px 0">
-      <h3 style="margin:0 0 10px">${E(day.day)}</h3>
-      <div class="g">${(day.anime_list||[]).map(a=>`<a class="c ota-card" href="${E(a.url||('#/o/list'))}" target="_blank" rel="noopener noreferrer">
-        <div class="im" style="background-image:url('${E(a.poster)}')"></div>
-        <div class="nm">${E(a.title)}</div>
-      </a>`).join('')}</div>
-    </section>`).join('')}`;
-}
-
-async function otakuListPage(){
-  const d=await otakuData(),list=d.animeList||[];
-  app.innerHTML=`<div class="ota-head"><h2>📚 Daftar Anime</h2><span class="mu">${list.length} judul</span></div>
-    <div class="g">${list.map(a=>`<a class="c ota-card" ${oLink(a)}>
-      <div class="im" style="background-image:url('${E(a.poster)}')"></div>
-      <div class="nm">${E(a.title)}</div>
-      <div class="ota-meta">${E(a.status||'Status tidak tersedia')} · ★ ${E(a.score||'-')}</div>
-      <div class="ota-meta">${(a.genreList||[]).map(g=>E(g.title)).join(' · ')}</div>
-    </a>`).join('')}</div>
-    <p class="mu" style="margin-top:18px">Pilih anime untuk melihat detail, atau membuka halaman sumber Otakudesu di tab baru.</p>`;
-}
-async function otakuPage(kind){
-  const d=await otakuData(),completed=kind==='completed';
-  const list=completed?d.completed.animeList:d.ongoing.animeList;
-  const title=completed?'Anime Complete':'Anime Ongoing';
-  app.innerHTML=`<div class="ota-head"><h2>${completed?'🏁':'📺'} ${title}</h2><span class="mu">${list.length} judul · Data katalog</span></div>
-    <div class="g">${list.map(a=>otakuCard(a,completed)).join('')}</div>
-    <p class="mu" style="margin-top:18px">Pilih anime untuk membuka halaman sumber Otakudesu di tab baru.</p>`;
-}
-
-async function otakuDetail(id){
-  const d=await otakuData(),m=d.detail[decodeURIComponent(id||'')];
-  if(!m){app.innerHTML='<p class="msg">Detail anime belum tersedia.<br><br><a class="btn" href="#/o/list">Ke Daftar Anime</a></p>';return}
-  const rows=[['Judul Jepang',m.japanese],['Skor',m.score],['Tipe',m.type],['Status',m.status],['Episode',m.episodes],['Durasi',m.duration],['Tayang',m.aired],['Studio',m.studios],['Produser',m.producers]].filter(r=>r[1]);
-  const syn=(m.synopsis&&m.synopsis.paragraphs||[]).map(p=>`<p>${E(p)}</p>`).join('');
-  app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(m.poster)}')"></div><div class="in">
-    <h2 style="margin-top:0">${E(m.title)}</h2>
-    <div class="chips">${(m.genreList||[]).map(g=>`<a class="chip" href="#/o/genre/${E(g.genreId)}">${E(g.title)}</a>`).join('')}</div>
-    <div class="dt">${rows.map(r=>`<div><span>${r[0]}</span><br>${E(r[1])}</div>`).join('')}</div>
-        <div style="margin-top:12px"><a class="btn s" href="#/o/list">‹ Kembali</a></div></div></div>
-    ${SY(syn)}<h2 class="sec">Daftar Episode <span class="mu">(${(m.episodeList||[]).length})</span></h2>
-    <div class="eo">${(m.episodeList||[]).map(e=>`<a href="#/o/watch/${encodeURIComponent(e.episodeId||e.slug||String(e.otakudesuUrl||'').split('/').filter(Boolean).pop()||'')}"><b>Episode ${E(e.eps)}</b><small>${E(e.date)} · putar melalui Sanka</small></a>`).join('')}</div>
-    ${(m.recommendedAnimeList||[]).length?`<h2>Rekomendasi</h2><div class="hs">${m.recommendedAnimeList.map(a=>`<a class="c ota-card" ${oLink(a)}><div class="im" style="background-image:url('${E(a.poster)}')"></div><div class="nm">${E(a.title)}</div></a>`).join('')}</div>`:''}`;
-}
-async function otakuGenres(){
-  const d=await otakuData(),cnt={};
-  (d.animeList||[]).forEach(a=>(a.genreList||[]).forEach(g=>cnt[g.genreId]=(cnt[g.genreId]||0)+1));
-  app.innerHTML=`<div class="ota-head"><h2>🏷️ Genre</h2><span class="mu">${d.genres.length} genre</span></div>
-    <div class="chips">${d.genres.map(g=>`<a class="chip" href="#/o/genre/${E(g.genreId)}">${E(g.title)}${cnt[g.genreId]?`<small>${cnt[g.genreId]}</small>`:''}</a>`).join('')}</div>
-    <p class="mu">Angka menunjukkan jumlah anime di Daftar Anime yang punya genre tersebut.</p>`;
-}
-async function otakuGenre(id){
-  const d=await otakuData(),gid=decodeURIComponent(id||''),g=d.genres.find(x=>x.genreId===gid);
-  if(!g){app.innerHTML='<p class="msg">Genre tidak ditemukan.<br><br><a class="btn" href="#/o/genres">Semua genre</a></p>';return}
-  const list=(d.animeList||[]).filter(a=>(a.genreList||[]).some(x=>x.genreId===gid));
-  app.innerHTML=`<div class="ota-head"><h2>🏷️ ${E(g.title)}</h2><span class="mu">${list.length} judul</span></div>
-    <div class="chips">${d.genres.map(x=>`<a class="chip${x.genreId===gid?' on':''}" href="#/o/genre/${E(x.genreId)}">${E(x.title)}</a>`).join('')}</div>
-    ${list.length?`<div class="g">${list.map(a=>`<a class="c ota-card" ${oLink(a)}><div class="im" style="background-image:url('${E(a.poster)}')"></div><div class="nm">${E(a.title)}</div><div class="ota-meta">${E(a.status||'')} · ★ ${E(a.score||'-')}</div></a>`).join('')}</div>`:`<p class="msg">Belum ada anime bergenre ${E(g.title)} di Daftar Anime.<br><br><a class="btn" target="_blank" rel="noopener noreferrer" href="${E(g.otakudesuUrl)}">Lihat di Otakudesu ↗</a></p>`}`;
-}
-
-async function otakuWatch(slug){
-  const id=decodeURIComponent(slug||'');
-  app.innerHTML=`<div class="ota-head"><h2>▶ Pemutar Otakudesu</h2><span class="mu">Sumber: Sanka REST API</span></div><div class="pl" id="pl"><div class="msg">Menyiapkan episode…</div></div><p class="mu">Jika server gagal, kemungkinan endpoint upstream sedang berubah atau server video sumber sedang tidak tersedia.</p><div style="margin-top:14px"><a class="btn s" href="javascript:history.back()">‹ Kembali</a></div>`;
-  await playSankaEpisode(id,undefined,'ota');
-}
-
-async function home(){
-  const b='type:ANIME,isAdult:false';
-  const d=await gql(`{a:Page(perPage:18){media(sort:TRENDING_DESC,${b}){${F}}}r:Page(perPage:18){media(sort:POPULARITY_DESC,status:RELEASING,${b}){${F}}}}`);
-  app.innerHTML=contWatch()+`<h2>🔥 Lagi Tren</h2>${grid(d.a.media)}<h2>📺 Sedang Tayang</h2>${grid(d.r.media)}`;
-}
-async function find(q){
-  const d=await gql(`query($q:String){Page(perPage:36){media(search:$q,type:ANIME,isAdult:false){${F}}}}`,{q});
-  app.innerHTML=`<h2>Hasil: ${E(q)}</h2>`+(d.Page.media.length?grid(d.Page.media):'<p class="msg">Tidak ada hasil.</p>');
-}
-async function show(id){
-  const m=(await gql(`query($i:Int){Media(id:$i,type:ANIME){${F}}}`,{i:+id})).Media;
-  const n=m.episodes||(m.nextAiringEpisode?m.nextAiringEpisode.episode-1:12)||12;const w=hist()[m.id];
-  app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(m.coverImage.large)}')"></div><div class="in"><h1 style="font-size:24px">${E(T(m))}</h1>
-  <div class="mu">${m.seasonYear||''} · ${E(m.status)} · ${E(m.genres.join(', '))}${m.averageScore?' · ★ '+(m.averageScore/10).toFixed(1):''}</div>
-  ${TR(m)}${w?`<button class="btn" id="rs">▶ Lanjut Eps ${w.e}</button>`:''}</div></div>${SY(E((m.description||'').replace(/<[^>]+>/g,'')))}
-  <div class="sec"><h3 class="sh">▶ Tonton</h3></div><div class="pl" id="pl"><div class="msg">Pilih episode atau tekan Trailer.</div></div>
-  <div class="bar"><b id="ep">Episode —</b><span style="flex:1"></span><input id="jp" class="jp" type="number" inputmode="numeric" min="1" max="${n}" placeholder="Ke eps"><button class="btn s" id="pv">‹</button><button class="btn s" id="nx">›</button><a class="btn s" id="dl" hidden target="_blank" rel="noopener" download>⬇</a></div>
-  <h3 class="sh sec">Pilih Episode</h3><div class="chips" id="rg"></div><div class="eps" id="eps"></div>`;
-  let cur=0;const PG=50;let pg=0;
-  const draw=()=>{const s0=pg*PG+1,e2=Math.min(n,s0+PG-1);
-    $('#rg').innerHTML=n>PG?Array.from({length:Math.ceil(n/PG)},(_,i)=>`<button class="chip${i===pg?' on':''}" data-p="${i}">${i*PG+1}–${Math.min(n,(i+1)*PG)}</button>`).join(''):'';
-    $('#eps').innerHTML=Array.from({length:e2-s0+1},(_,i)=>`<button data-e="${s0+i}"${s0+i===cur?' class="on"':''}>${s0+i}</button>`).join('')};
-  const play=e=>{
-    if(e<1||e>n)return;cur=e;window.nextEp=()=>play(e+1);
-    {const h=hist();h[m.id]={e,t:T(m),c:m.coverImage.large,ts:Date.now()};try{localStorage.setItem('kw',JSON.stringify(h))}catch{}}
-    if(Math.floor((e-1)/PG)!==pg){pg=Math.floor((e-1)/PG);draw()}
-    document.querySelectorAll('#eps button').forEach(b=>b.classList.toggle('on',+b.dataset.e===e));
-    $('#ep').textContent='Episode '+e;
-    const c=cfg(),box=$('#pl'),dl=$('#dl');dl.hidden=true;if(hls){hls.destroy();hls=null}
-    if(!c.t){
-      box.innerHTML='<div class="msg">Mencari episode di Samehadaku melalui Sanka…</div>';
-      sankaAutoEpisode([m.title.romaji,m.title.english].concat(m.synonyms||[]),e)
-        .then(slug=>{if(cur===e)playSankaEpisode(slug,T(m))})
-        .catch(err=>{
-          if(cur!==e)return;
-          box.innerHTML=`<div class="msg">Streaming Sanka belum tersedia: ${E(err.message)}<br><br>Mencari sumber resmi…</div>`;
-          fetch('/api/yt?ep='+e+'&t='+encodeURIComponent([m.title.english,m.title.romaji].filter(Boolean).join('|')))
-            .then(r=>r.json()).then(y=>{if(cur!==e)return;if(y&&y.id){box.innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${E(y.id)}?autoplay=1" allowfullscreen allow="autoplay;fullscreen"></iframe>`}else box.innerHTML=`<div class="msg">Episode tidak ditemukan di Sanka atau YouTube resmi.<br><small>${E(err.message)}</small></div>`})
-            .catch(()=>{if(cur===e)box.innerHTML=`<div class="msg">Gagal mengambil sumber video.<br><small>${E(err.message)}</small></div>`});
-        });
-      return;
-    }
-    const u=c.t.replace(/{id}/g,m.id).replace(/{ep}/g,e).replace(/{title}/g,encodeURIComponent(m.title.romaji));
-    if(c.m==='i'){box.innerHTML=`<iframe src="${E(u)}" allowfullscreen allow="autoplay;fullscreen"></iframe>`;return}
-    box.innerHTML='<video controls autoplay playsinline></video>';const v=box.firstChild;
-    if(/\.m3u8/i.test(u)&&window.Hls&&Hls.isSupported()){hls=new Hls();hls.loadSource(u);hls.attachMedia(v)}else v.src=u;
-    v.onerror=()=>box.innerHTML='<div class="msg">Video gagal dimuat. Cek alamat sumber.</div>';
-    v.onended=()=>play(e+1);dl.href=u;dl.hidden=false;
-  };
-  const tr=$('#tr');if(tr)tr.onclick=()=>{$('#pl').innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${E(m.trailer.id)}?autoplay=1" allowfullscreen allow="autoplay;fullscreen"></iframe>`;$('#pl').scrollIntoView({behavior:'smooth',block:'center'})};
-  $('#eps').onclick=ev=>{const b=ev.target.closest('button');if(b)play(+b.dataset.e)};
-  $('#rg').onclick=ev=>{const b=ev.target.closest('[data-p]');if(b){pg=+b.dataset.p;draw()}};
-  $('#jp').onchange=ev=>{const v=+ev.target.value;if(v>=1&&v<=n){pg=Math.floor((v-1)/PG);draw();play(v)}ev.target.value=''};
-  draw();const rs=$('#rs');if(rs)rs.onclick=()=>{pg=Math.floor((w.e-1)/PG);draw();play(w.e)};
-  $('#pv').onclick=()=>play(cur-1);$('#nx').onclick=()=>play(cur+1);
-}
-
-const md=async p=>{const r=await fetch('/api/md?p='+encodeURIComponent(p));if(!r.ok)throw Error('MangaDex '+r.status);return r.json()};
-const MT=a=>a.title.en||Object.values(a.title)[0]||'Tanpa judul';
-const MC=m=>{const c=(m.relationships||[]).find(x=>x.type==='cover_art');return c&&c.attributes?`https://uploads.mangadex.org/covers/${m.id}/${c.attributes.fileName}.256.jpg`:''};
-const mgrid=l=>`<div class="g">${l.map(m=>`<a class="c" href="#/m/${m.id}"><div class="im" style="background-image:url('${E(MC(m))}')"></div><div class="nm">${E(MT(m.attributes))}</div></a>`).join('')}</div>`;
-const RT='&contentRating[]=safe&contentRating[]=suggestive';
-const lang=()=>localStorage.getItem('ml')||'en';
-const fc={};
-async function feed(id){
-  const L=lang();if(fc[id+L])return fc[id+L];
-  const d=await md(`/manga/${id}/feed?limit=500&translatedLanguage[]=${L}&order[chapter]=asc&includeExternalUrl=0`+RT);
-  const seen=new Set(),out=[];
-  for(const c of d.data){const k=c.attributes.chapter||c.id;if(c.attributes.pages>0&&!seen.has(k)){seen.add(k);out.push(c)}}
-  return fc[id+L]=out;
-}
-async function mhome(){
-  const d=await md('/manga?limit=24&order[followedCount]=desc&includes[]=cover_art&hasAvailableChapters=true'+RT);
-  app.innerHTML=`<h2>📚 Manga Populer</h2>${mgrid(d.data)}`;
-}
-async function mfind(q){
-  const d=await md('/manga?limit=36&title='+encodeURIComponent(q)+'&includes[]=cover_art'+RT);
-  app.innerHTML=`<h2>Manga: ${E(q)}</h2>`+(d.data.length?mgrid(d.data):'<p class="msg">Tidak ada hasil.</p>');
-}
-async function mshow(id){
-  const [d,ch]=await Promise.all([md(`/manga/${id}?includes[]=cover_art`),feed(id)]);
-  const m=d.data,a=m.attributes,ds=a.description.en||Object.values(a.description)[0]||'';
-  const L=lang();
-  app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(MC(m).replace('.256.jpg','.512.jpg'))}')"></div><div class="in"><h1 style="font-size:24px">${E(MT(a))}</h1>
-  <div class="mu">${a.year||''} · ${E(a.status||'')} · ${E(a.tags.map(t=>t.attributes.name.en).slice(0,6).join(', '))}</div>
-    <select id="lg" class="f" style="background:var(--b2);border:1px solid var(--b3);border-radius:9px;padding:7px 10px"><option value="en"${L==='en'?' selected':''}>Bahasa Inggris</option><option value="id"${L==='id'?' selected':''}>Bahasa Indonesia</option></select></div></div>${SY(E(ds))}
-  <h2 class="sec">${ch.length} Chapter</h2>`+(ch.length?`<div class="cl">${ch.map(c=>`<a href="#/r/${id}/${c.id}">Ch. ${E(c.attributes.chapter||'?')}${c.attributes.title?' · '+E(c.attributes.title.slice(0,18)):''}</a>`).join('')}</div>`:'<p class="msg">Belum ada chapter yang bisa dibaca di bahasa ini. Coba bahasa lain.</p>');
-  $('#lg').onchange=e=>{localStorage.setItem('ml',e.target.value);route()};
-}
-async function read(mid,cid){
-  const [ch,d]=await Promise.all([feed(mid),md('/at-home/server/'+cid)]);
-  const i=ch.findIndex(c=>c.id===cid),pv=ch[i-1],nx=ch[i+1];
-  const nav=`<div class="bar" style="justify-content:center"><a class="btn s" href="${pv?`#/r/${mid}/${pv.id}`:'#/m/'+mid}">‹ ${pv?'Sebelumnya':'Daftar'}</a><a class="btn s" href="#/m/${mid}">☰</a><a class="btn" href="${nx?`#/r/${mid}/${nx.id}`:'#/m/'+mid}">${nx?'Berikutnya':'Selesai'} ›</a></div>`;
-  const h=d.chapter.hash;
-  app.innerHTML=`<div class="rd"><h2 style="text-align:center">Chapter ${E(i>=0?ch[i].attributes.chapter||'?':'')}</h2>${nav}${d.chapter.data.map(f=>`<img loading="lazy" src="${E(d.baseUrl)}/data/${E(h)}/${E(f)}" alt="">`).join('')}${nav}</div>`;
-}
-function set(){
-  const c=cfg();
-  app.innerHTML=`<h2>Sumber Video</h2><div class="f">
-  <select id="m"><option value="v"${c.m!=='i'?' selected':''}>Video langsung (.mp4 / .m3u8)</option><option value="i"${c.m==='i'?' selected':''}>Embed (iframe)</option></select>
-  <input id="t" value="${E(c.t||'')}" placeholder="https://servermu.com/{id}/{ep}.m3u8">
-  <div class="mu">Pakai {id} (ID AniList), {ep} (nomor episode), {title}. Isi dengan sumber yang kamu punya hak aksesnya.</div>
-  <button class="btn" id="s">Simpan</button><div class="mu" id="ok"></div></div>`;
-  $('#s').onclick=()=>{localStorage.setItem('k',JSON.stringify({m:$('#m').value,t:$('#t').value.trim()}));$('#ok').textContent='Tersimpan ✓'};
-}
-async function route(){
-  if(hls){hls.destroy();hls=null}
-  const [,p,a,b]=location.hash.slice(1).split('/');scrollTo(0,0);setNav();app.innerHTML=SK;
-  try{p==='o'?(a==='list'?await otakuListPage():a==='d'?await otakuDetail(b):a==='watch'?await otakuWatch(b):a==='genres'?await otakuGenres():a==='genre'?await otakuGenre(b):a==='schedule'?await otakuSchedulePage():await otakuPage(a==='completed'?'completed':'ongoing')):p==='a'?await show(a):p==='m'?await(a?mshow(a):mhome()):p==='ms'?await mfind(decodeURIComponent(a||'')):p==='r'?await read(a,b):p==='s'?await find(decodeURIComponent(a||'')):p==='set'?set():await home()}
-  catch(e){app.innerHTML=`<p class="msg">Ups, halaman gagal dimuat.<br><small>${E(e.message)}</small><br><br><button class="btn" onclick="route()">Coba lagi</button></p>`}
-}
-$('#sf').onsubmit=e=>{e.preventDefault();const q=$('#si').value.trim();if(q)location.hash=(/^#\/(m|ms|r)(\/|$)/.test(location.hash)?'#/ms/':'#/s/')+encodeURIComponent(q)};
-addEventListener('hashchange',route);route();
-</script>
-</body>
-</html>
