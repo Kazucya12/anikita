@@ -651,8 +651,16 @@ async function mdFetch(path){
 const mLang=()=>cfg().ml||'id';
 const mT=m=>{const t=m.attributes.title||{};return t.en||t[Object.keys(t)[0]]||'Tanpa judul'};
 const mCover=(m,s=256)=>{const c=(m.relationships||[]).find(r=>r.type==='cover_art');return c&&c.attributes&&c.attributes.fileName?`https://uploads.mangadex.org/covers/${m.id}/${c.attributes.fileName}.${s}.jpg`:''};
-const px=u=>cfg().ip&&/mangadex\.(org|network)/i.test(u)?'/api/img?u='+encodeURIComponent(u):u;
-function imgFb(el){if(el.dataset.fb||/\/api\/img\?/.test(el.src))return;el.dataset.fb=1;el.src='/api/img?u='+encodeURIComponent(el.src)}
+const px=u=>cfg().ip&&/mangadex\.(org|network)/i.test(u)?'/api/md?u='+encodeURIComponent(u):u;
+function imgFb(el){
+  el.dataset.fb=(+el.dataset.fb||0)+1;
+  const m=el.src.match(/\/api\/md\?u=([^&]+)/);
+  const orig=m?decodeURIComponent(m[1]):el.src;
+  if(!m){el.src='/api/md?u='+encodeURIComponent(orig);return}
+  const full=orig.replace(/(\.(?:jpe?g|png|webp))\.\d+\.jpg$/i,'$1');
+  if(full!==orig&&!el.dataset.full){el.dataset.full=1;el.src='/api/md?u='+encodeURIComponent(full);return}
+  el.style.visibility='hidden';
+}
 const mImg=(src,alt,cls='')=>src?`<img ${cls?`class="${cls}" `:''}loading="lazy" referrerpolicy="no-referrer" src="${E(px(src))}" alt="${E(alt)}" onerror="imgFb(this)">`:'';
 const mCard=m=>`<a class="c" href="#/m/${E(m.id)}"><div class="im">${mImg(mCover(m),mT(m))}${m.attributes.year?`<span class="bd">${E(m.attributes.year)}</span>`:''}${m.attributes.status==='completed'?'<span class="bd b2">Tamat</span>':''}</div><div class="nm">${E(mT(m))}</div></a>`;
 const mGrid=l=>l.length?`<div class="g">${l.map(mCard).join('')}</div>`:'<div class="msg">Tidak ada manga ditemukan untuk bahasa ini. Ganti bahasa di Pengaturan (⚙).</div>';
