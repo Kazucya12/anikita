@@ -5,14 +5,40 @@
 const HOST = 'https://www.sankavollerei.web.id';
 const UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36';
 
+// Beberapa profil header; bila Sanka membalas 403/non-JSON, dicoba profil berikutnya.
+const PROFILES = [
+  { accept: 'application/json', 'user-agent': UA },
+  {
+    accept: 'application/json, text/plain, */*',
+    'accept-language': 'id-ID,id;q=0.9,en;q=0.8',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    referer: HOST + '/',
+    origin: HOST
+  },
+  { accept: '*/*', 'user-agent': 'axios/1.7.2' }
+];
+
 async function pull(path, key) {
   let url = HOST + path;
   if (key) url += (path.includes('?') ? '&' : '?') + 'apikey=' + encodeURIComponent(key);
-  const r = await fetch(url, { headers: { accept: 'application/json', 'user-agent': UA } });
-  const body = await r.text();
-  let json = true;
-  try { JSON.parse(body); } catch (e) { json = false; }
-  return { r, body, json };
+  let out = null;
+  for (const headers of PROFILES) {
+    const r = await fetch(url, { headers });
+    const body = await r.text();
+    let json = true;
+    try { JSON.parse(body); } catch (e) { json = false; }
+    out = { r, body, json };
+    if (json || (r.status !== 403 && r.status !== 429 && r.status !== 503)) break;
+  }
+  return out;
+}
+
+function hint(status, body) {
+  const t = String(body || '').slice(0, 2000);
+  if (/cloudflare|just a moment|attention required|cf-ray/i.test(t)) return ' Diblokir proteksi Cloudflare milik Sanka (IP server Vercel ditolak).';
+  if (/api.?key|apikey|unauthori[sz]ed|forbidden/i.test(t)) return ' Sanka kemungkinan membutuhkan API key (isi env SANKA_APIKEY di Vercel).';
+  if (status === 403) return ' Kemungkinan butuh API key (env SANKA_APIKEY) atau IP Vercel diblokir.';
+  return '';
 }
 
 module.exports = async (req, res) => {
@@ -38,8 +64,9 @@ module.exports = async (req, res) => {
     if (!json) {
       res.status(r.status >= 400 ? r.status : 502).json({
         error: 'upstream_not_json',
-        message: 'Sanka membalas bukan JSON (HTTP ' + r.status + ').',
-        path
+        message: 'Sanka membalas bukan JSON (HTTP ' + r.status + ').' + hint(r.status, body),
+        path,
+        snippet: String(body || '').replace(/\s+/g, ' ').slice(0, 200)
       });
       return;
     }
