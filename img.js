@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'host_not_allowed' });
   }
   try {
-    const r = await fetch(u.href, { headers: { 'User-Agent': 'KumoriLite/1.0 (image proxy)', Accept: 'image/*' } });
+    const r = await fetch(u.href, { headers: { 'User-Agent': 'Kumori/1.0 (image proxy)', Accept: 'image/*' } });
     let finalHost = '';
     try { finalHost = new URL(r.url).hostname; } catch (e) {}
     if (finalHost && !ALLOWED.test(finalHost)) return res.status(400).json({ error: 'redirect_not_allowed' });
