@@ -101,6 +101,7 @@ body.rd-mode #bn{display:none}
 .az{flex-wrap:wrap;overflow:visible}
 .hs{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));overflow:visible}.hs .c{flex:none}
 #sanka-servers{flex-wrap:wrap;overflow:visible}#sanka-servers .chip{white-space:normal}
+.dlr{display:flex;gap:10px;align-items:flex-start;margin:8px 0}.dlr>b{flex:0 0 58px;padding-top:8px;font-size:14px}.dlr .chips{margin:0;flex:1}.dlr .chip{min-height:36px;display:inline-flex;align-items:center}
 </style>
 </head>
 <body>
@@ -260,6 +261,7 @@ async function playSankaEpisode(slug,title,src='sh'){
   box.innerHTML='<div class="msg">Memuat video…</div>';
   try{
     const data=await sankaEpisode(slug,src);
+    showDownloads(box,data);
     const direct=findVideo(data);
     const servers=episodeServerButtons(data);
     if(direct){
@@ -299,6 +301,49 @@ function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('v
   }else{
     box.innerHTML=`<iframe src="${E(url)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
   }
+}
+
+/* ===== DOWNLOAD (360p / 480p / 720p / 1080p) ===== */
+function parseDownloads(data){
+  const out=[],seen=new Set();
+  const qOf=t=>{const m=String(t||'').match(/(\d{3,4})\s*p\b|^\s*(\d{3,4})\s*$|[_\s-](\d{3,4})p/i);return m?(m[1]||m[2]||m[3])+'p':''};
+  const fOf=t=>{const m=String(t||'').match(/\b(mkv|mp4|x265|webm|avi)\b/i);return m?m[1].toUpperCase():''};
+  const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch{return 'Unduh'}};
+  const push=(c,name,url)=>{
+    if(!/^https?:\/\//i.test(url)||seen.has(c.q+'|'+url))return;
+    seen.add(c.q+'|'+url);
+    out.push({q:c.q||'Lainnya',f:c.f||'',n:String(name||'').trim()||host(url),u:url});
+  };
+  const rec=(v,c,key)=>{
+    if(Array.isArray(v)){v.forEach(x=>rec(x,c));return}
+    if(typeof v==='string'){push(c,key,v);return}
+    if(!v||typeof v!=='object')return;
+    const t=v.title||v.name||v.quality||v.resolution||v.format||'';
+    const n={...c};
+    const q=qOf(v.quality||v.resolution||t),f=fOf(v.format||t);
+    if(q)n.q=q;if(f&&!q)n.f=f;
+    if(typeof v.url==='string'||typeof v.link==='string'){push(n,(q?'':t)||v.host||v.server||'',v.url||v.link)}
+    for(const [k,x] of Object.entries(v)){
+      if(/^(title|name|quality|resolution|format|url|link|host|server)$/i.test(k))continue;
+      if(x&&typeof x==='object'||typeof x==='string'){
+        const k2={...n};const kq=qOf(k),kf=fOf(k);
+        if(kq)k2.q=kq;else if(kf)k2.f=kf;
+        rec(x,k2,k);
+      }
+    }
+  };
+  if(data&&typeof data==='object')Object.entries(data).forEach(([k,v])=>{if(/^(download|downloads|downloadUrl|download_url)$/i.test(k)&&v)rec(v,{q:qOf(k),f:''},k)});
+  return out;
+}
+function showDownloads(box,data){
+  const old=document.getElementById('dl-box');if(old)old.remove();
+  const l=parseDownloads(data);if(!l.length||!box||!box.parentNode)return;
+  const by={};l.forEach(x=>(by[x.q]=by[x.q]||[]).push(x));
+  const num=q=>parseInt(q)||99999;
+  const qs=Object.keys(by).sort((a,b)=>num(a)-num(b));
+  const el=document.createElement('div');el.id='dl-box';el.className='sec';
+  el.innerHTML='<h3 class="sh">⬇ Download</h3>'+qs.map(q=>`<div class="dlr"><b>${E(q)}</b><div class="chips">${by[q].map(x=>`<a class="chip" target="_blank" rel="noopener noreferrer" href="${E(x.u)}">${E((x.f?x.f+' • ':'')+x.n)}</a>`).join('')}</div></div>`).join('');
+  box.parentNode.insertBefore(el,box.nextSibling);
 }
 
 let otakuCache=null;
@@ -411,6 +456,7 @@ async function vAnime(id){
     cur=ep;const my=++tok;
     document.querySelectorAll('#eps button').forEach(b=>b.classList.toggle('on',+b.dataset.e===ep));
     const bar=document.getElementById('sanka-bar');if(bar)bar.remove();
+    const dlb=document.getElementById('dl-box');if(dlb)dlb.remove();
     if(hls){try{hls.destroy()}catch{}hls=null}
     const box=$('#pl'),st=$('#srcst');
     saveHist(id,{t:T(m),c:m.coverImage.large,e:ep});
