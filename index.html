@@ -76,6 +76,7 @@ main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 @media(max-width:560px){.d .cv{width:130px}}
 .sm{background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:0 10px;height:38px;font-size:14px}.sm option{color:#000}#sf{gap:6px}
 .hr{display:flex;align-items:center;gap:10px;width:100%}.seg{display:flex;flex:1;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:3px}.seg a{flex:1;text-align:center;padding:7px 0;border-radius:99px;color:var(--mu);font-weight:700}.seg a.on{background:linear-gradient(90deg,var(--ac),var(--ac2));color:#fff}#sf{flex:1 1 100%;max-width:none}
+.c .im img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
 </style>
 </head>
 <body>
@@ -259,5 +260,4 @@ async function otakuData(){
   otakuCache.genres=r3.ok?await r3.json():[];
   return otakuCache;
 }
-const oLink=a=>(otakuCache&&otakuCache.detail[a.animeId])?`href="#/o/d/${encodeURIComponent(a.animeId)}"`:`href="${E(a.otakudesuUrl)}" target="_blank" rel="noopener noreferrer"`;
-function otakuCard(a,completed){
+const oLink=a=>(otakuCache&&otakuCache.detail[a.animeId])?`href="#/o/d/${encodeURIComponent(a.animeId)}"`:`href="${E(a.otakude
