@@ -296,6 +296,37 @@ const shortWIB=ts=>fmt(ts,{weekday:'short'})+' '+jam(ts)+' WIB';
 const rel=ts=>{let d=ts-Math.floor(Date.now()/1000);const f=d<0;d=Math.abs(d);const D=Math.floor(d/86400),H=Math.floor(d%86400/3600),M=Math.floor(d%3600/60);const t=D?D+' hari '+H+' jam':H?H+' jam '+M+' menit':M+' menit';return f?t+' lalu':t+' lagi'};
 const dayKey=ts=>fmt(ts,{year:'numeric',month:'2-digit',day:'2-digit'});
 
+/* ===== jam tayang untuk anime ongoing (Otakudesu tidak punya jam; diambil dari AniList) ===== */
+const airCache={};
+const airTitle=t=>String(t||'').replace(/\b(subtitle indonesia|sub indo)\b/gi,'').replace(/\s+/g,' ').trim();
+async function airLookup(titles){
+  const need=[...new Set(titles)].filter(t=>!(t in airCache));
+  for(let i=0;i<need.length;i+=10){
+    const ch=need.slice(i,i+10);
+    const vars=ch.map((_,j)=>'$t'+j+':String').join(',');
+    const q=`query(${vars}){${ch.map((_,j)=>`a${j}:Page(perPage:3){media(search:$t${j},type:ANIME,status:RELEASING,isAdult:false){id title{romaji english}synonyms nextAiringEpisode{airingAt episode}}}`).join('')}}`;
+    const v={};ch.forEach((t,j)=>v['t'+j]=airTitle(t));
+    try{
+      const d=await gql(q,v);
+      ch.forEach((t,j)=>{
+        const l=(d['a'+j]&&d['a'+j].media)||[];let best=null,bs=0;
+        l.forEach(m=>{const sc=sankaScore(airTitle(t),[m.title.romaji,m.title.english,...(m.synonyms||[])].filter(Boolean));if(sc>bs){bs=sc;best=m}});
+        airCache[t]=best&&bs>=0.5&&best.nextAiringEpisode?best.nextAiringEpisode:null;
+      });
+    }catch(e){console.warn('jam tayang gagal',e)}
+  }
+}
+async function enrichAiring(){
+  const els=[...document.querySelectorAll('.ota-card[data-t]:not([data-a])')];if(!els.length)return;
+  els.forEach(e=>e.dataset.a='1');
+  await airLookup(els.map(e=>e.dataset.t));
+  els.forEach(e=>{
+    const r=airCache[e.dataset.t];if(!r||!r.airingAt||!e.isConnected)return;
+    let mt=e.querySelector('.ota-meta');if(!mt){mt=document.createElement('div');mt.className='ota-meta';e.appendChild(mt)}
+    const sp=document.createElement('span');sp.textContent='⏰ Eps '+r.episode+' • '+shortWIB(r.airingAt);mt.appendChild(sp);
+  });
+}
+
 /* ===== util tambahan ===== */
 const clean=t=>String(t||'').replace(/<(?!br\s*\/?>)[^>]*>/gi,'').trim();
 const enc=encodeURIComponent;
@@ -376,7 +407,7 @@ async function vAnime(id){
 }
 
 /* ===== OTAKUDESU ===== */
-const otaCard=a=>`<a class="c ota-card" ${oLink(a)}><div class="im" style="background-image:url('${E(a.poster)}')">${a.score&&+a.score?`<span class="bd">★ ${E(a.score)}</span>`:''}${a.episodes?`<span class="bd b2">Eps ${E(a.episodes)}</span>`:''}</div><div class="nm">${E(a.title)}</div><div class="ota-meta">${[a.releaseDay,a.latestReleaseDate||a.lastReleaseDate,a.status].filter(Boolean).map(x=>`<span>${E(x)}</span>`).join('')}</div></a>`;
+const otaCard=a=>`<a class="c ota-card" data-t="${E(a.title)}" ${oLink(a)}><div class="im" style="background-image:url('${E(a.poster)}')">${a.score&&+a.score?`<span class="bd">★ ${E(a.score)}</span>`:''}${a.episodes?`<span class="bd b2">Eps ${E(a.episodes)}</span>`:''}</div><div class="nm">${E(a.title)}</div><div class="ota-meta">${[a.releaseDay,a.latestReleaseDate||a.lastReleaseDate,a.status].filter(Boolean).map(x=>`<span>${E(x)}</span>`).join('')}</div></a>`;
 const otaGrid=l=>l.length?`<div class="g">${l.map(otaCard).join('')}</div>`:'<div class="msg">Tidak ada data.</div>';
 async function vOtaList(kind,pg){
   app.innerHTML=SK;pg=Math.max(1,+pg||1);
@@ -388,6 +419,7 @@ async function vOtaList(kind,pg){
   }catch{}
   if(!live&&pg===1){const o=await otakuData();l=(o[kind]&&o[kind].animeList)||[]}
   app.innerHTML=`<div class="ota-head"><h2>${names[kind]}</h2><span class="mu">Otakudesu • ${live?'live, hal. '+pg:'data tersimpan'}</span></div>`+otaGrid(l)+`<div class="pg">${pg>1?`<a class="btn s" href="#/o/${kind}/${pg-1}">← Sebelumnya</a>`:''}${l.length&&(live||pg>1)?`<a class="btn" href="#/o/${kind}/${pg+1}">Berikutnya →</a>`:''}</div>`;
+  if(kind==='ongoing')enrichAiring();
 }
 async function vOtaAll(){
   app.innerHTML=SK;const o=await otakuData();
@@ -411,6 +443,7 @@ async function vOtaGenre(id,page){
   const d=await sankaFetch('/anime/genre/'+enc(id)+(page>1?'?page='+page:''));
   const l=[...new Map(walkObjects(d).filter(x=>x.title&&x.animeId&&x.poster).map(x=>[x.animeId,x])).values()];
   app.innerHTML=`<div class="ota-head"><h2>Genre: ${E(id)}</h2><a class="mu" href="#/o/genres">← Semua genre</a></div>`+otaGrid(l)+`<div class="bar" style="justify-content:center;margin-top:16px">${page>1?`<a class="btn s" href="#/o/g/${enc(id)}/${page-1}">← Sebelumnya</a>`:''}${l.length?`<a class="btn" href="#/o/g/${enc(id)}/${page+1}">Berikutnya →</a>`:''}</div>`;
+  enrichAiring();
 }
 async function vJadwal(){
   app.innerHTML=SK;
@@ -447,6 +480,7 @@ async function vOtaSchedule(){
     app.innerHTML=`<h2>Jadwal Rilis</h2><div class="chips" id="dc">${s.map(x=>`<button class="chip${x.day===cur?' on':''}" data-d="${E(x.day)}">${E(x.day)}<small>${x.anime_list.length}</small></button>`).join('')}</div>`+
     `<div class="g">${day.anime_list.map(a=>`<a class="c ota-card" href="#/o/d/${enc(a.slug)}"><div class="im" style="background-image:url('${E(a.poster)}')"></div><div class="nm">${E(a.title)}</div></a>`).join('')}</div>`;
     $('#dc').onclick=e=>{const b=e.target.closest('[data-d]');if(b){cur=b.dataset.d;draw()}};
+    enrichAiring();
   };
   draw();
 }
@@ -464,7 +498,13 @@ async function vOtaDetail(id){
   <div class="chips">${(d.genreList||[]).map(g=>`<a class="chip" href="#/o/g/${enc(g.genreId)}">${E(g.title)}</a>`).join('')}</div>
   <div class="dt">${info.map(x=>`<div><span>${E(x[0])}</span><br>${E(x[1])}</div>`).join('')}</div>
   ${eps.length?`<a class="btn" href="#/o/e/${enc(eps[eps.length-1].episodeId)}">▶ Mulai dari Eps ${E(eps[eps.length-1].eps)}</a>`:''}</div></div>
-  ${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/o/e/${enc(e.episodeId)}"><b>Episode ${E(e.eps)}</b><small>${E(e.date||'')}</small></a>`).join('')}</div>`:'<div class="msg">Belum ada episode.</div>'}`;
+  <div id="airln"></div>${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/o/e/${enc(e.episodeId)}"><b>Episode ${E(e.eps)}</b><small>${E(e.date||'')}</small></a>`).join('')}</div>`:'<div class="msg">Belum ada episode.</div>'}`;
+  otaDetailAir(d);
+}
+async function otaDetailAir(d){
+  if(!/ongoing/i.test(String(d.status||'')))return;
+  await airLookup([d.title]);const r=airCache[d.title],el=document.getElementById('airln');
+  if(r&&r.airingAt&&el)el.innerHTML=`<div class="mu" style="margin:8px 0">⏰ Eps ${r.episode} tayang <b>${E(fullWIB(r.airingAt))}</b> (${E(rel(r.airingAt))})</div>`;
 }
 async function vOtaEp(id){
   app.innerHTML=SK;const o=await otakuData();
