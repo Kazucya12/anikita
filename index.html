@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kumori Lite</title>
+<title>Kumori</title>
 <meta name="theme-color" content="#0e0f1a">
 <style>
 :root{--bg:#0e0f1a;--b2:#171928;--b3:#20233a;--tx:#eceefb;--mu:#a7acd0;--ac:#ff6b9d;--ac2:#7c5cff}
@@ -651,8 +651,9 @@ async function mdFetch(path){
 const mLang=()=>cfg().ml||'id';
 const mT=m=>{const t=m.attributes.title||{};return t.en||t[Object.keys(t)[0]]||'Tanpa judul'};
 const mCover=(m,s=256)=>{const c=(m.relationships||[]).find(r=>r.type==='cover_art');return c&&c.attributes&&c.attributes.fileName?`https://uploads.mangadex.org/covers/${m.id}/${c.attributes.fileName}.${s}.jpg`:''};
-function imgFb(el){if(el.dataset.fb)return;el.dataset.fb=1;el.src='/api/img?u='+encodeURIComponent(el.src)}
-const mImg=(src,alt,cls='')=>src?`<img ${cls?`class="${cls}" `:''}loading="lazy" referrerpolicy="no-referrer" src="${E(src)}" alt="${E(alt)}" onerror="imgFb(this)">`:'';
+const px=u=>cfg().ip&&/mangadex\.(org|network)/i.test(u)?'/api/img?u='+encodeURIComponent(u):u;
+function imgFb(el){if(el.dataset.fb||/\/api\/img\?/.test(el.src))return;el.dataset.fb=1;el.src='/api/img?u='+encodeURIComponent(el.src)}
+const mImg=(src,alt,cls='')=>src?`<img ${cls?`class="${cls}" `:''}loading="lazy" referrerpolicy="no-referrer" src="${E(px(src))}" alt="${E(alt)}" onerror="imgFb(this)">`:'';
 const mCard=m=>`<a class="c" href="#/m/${E(m.id)}"><div class="im">${mImg(mCover(m),mT(m))}${m.attributes.year?`<span class="bd">${E(m.attributes.year)}</span>`:''}${m.attributes.status==='completed'?'<span class="bd b2">Tamat</span>':''}</div><div class="nm">${E(mT(m))}</div></a>`;
 const mGrid=l=>l.length?`<div class="g">${l.map(mCard).join('')}</div>`:'<div class="msg">Tidak ada manga ditemukan untuk bahasa ini. Ganti bahasa di Pengaturan (⚙).</div>';
 const MK={pop:{t:'Populer',h:'📖 Manga Populer',q:'&order[followedCount]=desc'},ongoing:{t:'Ongoing',h:'🟢 Manga Ongoing',q:'&status[]=ongoing&order[latestUploadedChapter]=desc'},done:{t:'Tamat',h:'✅ Manga Tamat',q:'&status[]=completed&order[followedCount]=desc'},new:{t:'Update Terbaru',h:'🆕 Baru Diperbarui',q:'&order[latestUploadedChapter]=desc'}};
@@ -730,7 +731,7 @@ async function vReader(id){
     else if(!old.t)mdFetch('/manga/'+enc(mid)+'?includes[]=cover_art').then(j=>saveProg(mid,{t:mT(j.data),c:mCover(j.data,256)})).catch(()=>{});
   }
   const nav=`<div class="bar" style="justify-content:space-between;max-width:820px;margin:10px auto">${prev?`<a class="btn s" href="#/r/${E(prev.id)}">← Sebelumnya</a>`:'<span></span>'}${mid?`<a class="btn s" href="#/m/${E(mid)}">☰ Chapter</a>`:''}${next?`<a class="btn" href="#/r/${E(next.id)}">Berikutnya →</a>`:'<span></span>'}</div>`;
-  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${resume?`<div class="mu rs">↩ Dilanjutkan dari halaman ${resume+1}. <a href="#/r/${E(id)}" id="rtop">Ke atas</a></div>`:''}${nav}<div class="rd">${files.map((f,n)=>`<img loading="${resume&&n<=resume+1?'eager':'lazy'}" referrerpolicy="no-referrer" src="${E(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f)}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
+  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${resume?`<div class="mu rs">↩ Dilanjutkan dari halaman ${resume+1}. <a href="#/r/${E(id)}" id="rtop">Ke atas</a></div>`:''}${nav}<div class="rd">${files.map((f,n)=>`<img loading="${resume&&n<=resume+1?'eager':'lazy'}" referrerpolicy="no-referrer" src="${E(px(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f))}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
   const kd=e=>{if(e.key==='ArrowRight'&&next)location.hash='#/r/'+next.id;if(e.key==='ArrowLeft'&&prev)location.hash='#/r/'+prev.id};
   window.addEventListener('keydown',kd);window._kd=kd;
   let tk=0;
@@ -750,11 +751,13 @@ function vSettings(){
   <label class="mu">Bahasa manga</label><select id="s-ml"><option value="id"${mLang()==='id'?' selected':''}>Indonesia</option><option value="en"${mLang()==='en'?' selected':''}>English</option></select>
   <label class="mu">Putar episode berikutnya otomatis</label><select id="s-an"><option value="1"${c.an!==false?' selected':''}>Ya</option><option value="0"${c.an===false?' selected':''}>Tidak</option></select>
   <label class="mu">Mode hemat data (manga)</label><select id="s-ds"><option value="0"${!c.ds?' selected':''}>Mati</option><option value="1"${c.ds?' selected':''}>Hidup</option></select>
+  <label class="mu">Muat gambar manga lewat server (aktifkan jika gambar tidak muncul)</label><select id="s-ip"><option value="0"${!c.ip?' selected':''}>Mati</option><option value="1"${c.ip?' selected':''}>Hidup</option></select>
   <button class="btn s" id="s-clr">Hapus riwayat tontonan</button><button class="btn s" id="s-clr2">Hapus progres baca manga</button><button class="btn s" id="s-clr3">Hapus semua favorit</button><p class="mu" id="s-ok"></p></div>`;
   const ok=()=>{$('#s-ok').textContent='Tersimpan ✓'};
   $('#s-ml').onchange=e=>{saveCfg({ml:e.target.value});ok()};
   $('#s-an').onchange=e=>{saveCfg({an:e.target.value==='1'});ok()};
   $('#s-ds').onchange=e=>{saveCfg({ds:e.target.value==='1'});ok()};
+  $('#s-ip').onchange=e=>{saveCfg({ip:e.target.value==='1'});ok()};
   $('#s-clr').onclick=()=>{try{localStorage.removeItem('kw')}catch{}$('#s-ok').textContent='Riwayat dihapus ✓'};
   $('#s-clr2').onclick=()=>{try{localStorage.removeItem('kr')}catch{}$('#s-ok').textContent='Progres baca dihapus ✓'};
   $('#s-clr3').onclick=()=>{if(!confirm('Hapus semua favorit?'))return;try{localStorage.removeItem('kf')}catch{}$('#s-ok').textContent='Favorit dihapus ✓'};
