@@ -19,6 +19,9 @@ Kumori Lite adalah situs katalog anime dan manga ringan berbasis HTML/JavaScript
 - Jika Sanka mengubah endpoint atau bentuk respons, adapter di `index.html` (`SRC`, `sankaAutoEpisode`) dan proxy `api/sanka.js` perlu disesuaikan.
 - URL video eksternal hanya dapat diputar jika server sumber mengizinkan embed/CORS dan URL masih aktif. Sebagian server mungkin memerlukan iframe atau mungkin menolak pemutaran.
 
+## Donghua (Anichin)
+Tab **Donghua** (`#/dh`) memakai namespace `/donghua/...` pada Sanka: `/donghua/home`, `/donghua/ongoing`, `/donghua/completed`, `/donghua/detail/:slug`, `/donghua/episode/:slug`, `/donghua/server/:id`. Bentuk respons detail/episode dibaca secara generik; jika berbeda, sesuaikan `vDhDetail`/`vDhEp` di `index.html`.
+
 ## YouTube resmi (fallback)
 Fitur pencarian video YouTube membutuhkan `YOUTUBE_API_KEY` di Vercel Environment Variables. Tanpa key, fallback YouTube tidak akan berfungsi; streaming Sanka tetap dicoba lebih dahulu.
 
