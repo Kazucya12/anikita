@@ -13,7 +13,8 @@ Kumori Lite adalah situs katalog anime dan manga ringan berbasis HTML/JavaScript
 - Pemutar pada halaman anime AniList mencoba mencari judul dan episode di namespace Otakudesu pada Sanka API.
 - Halaman detail Otakudesu (bila detail lokal tersedia) mengarahkan pilihan episode ke pemutar internal Sanka.
 - Sanka dipanggil melalui `/api/sanka` sebagai proxy agar browser tidak melakukan request lintas domain secara langsung.
-- Tidak membutuhkan API key dari sisi website.
+- Endpoint Sanka yang dipakai: `/anime/search/:judul`, `/anime/anime/:animeId`, `/anime/episode/:episodeId`, `/anime/server/:serverId`.
+- Jika Sanka mewajibkan API key, isi Environment Variable `SANKA_APIKEY` di Vercel (tidak perlu mengubah kode).
 - Jika Sanka mengubah endpoint atau bentuk respons, adapter di `index.html` dan proxy `api/sanka.js` perlu disesuaikan.
 - URL video eksternal hanya dapat diputar jika server sumber mengizinkan embed/CORS dan URL masih aktif. Sebagian server mungkin memerlukan iframe atau mungkin menolak pemutaran.
 
