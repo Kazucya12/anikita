@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'KumoriLite/1.0 (MangaDex API proxy)'
+        'User-Agent': 'Kumori/1.0 (MangaDex API proxy)'
       }
     });
     const body = await upstream.text();
