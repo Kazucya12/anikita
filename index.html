@@ -85,13 +85,13 @@ main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 .az{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:6px 0 10px}.az::-webkit-scrollbar{display:none}
 .az .chip{flex:0 0 auto;padding:4px 11px;min-height:32px;cursor:pointer}
 .pg{display:flex;gap:10px;justify-content:center;margin:16px 0}
-.rs{text-align:center;margin:6px 0}.rs a{color:var(--ac);font-weight:700}
+.c .im img{background:var(--b2)}.rs{text-align:center;margin:6px 0}.rs a{color:var(--ac);font-weight:700}
 </style>
 </head>
 <body>
 <header><div class="hr"><a class="logo" href="#/">KUMORI</a><div class="seg"><a id="ta" href="#/">Anime</a><a id="tm" href="#/m">Manga</a></div><a class="ib" href="#/fav" aria-label="Favorit">❤</a><a class="ib" href="#/set" aria-label="Pengaturan">⚙</a></div>
 <form id="sf"><input id="si" placeholder="Cari anime…"></form>
-<nav id="nv"><a href="#/o/ongoing">Ongoing</a><a href="#/o/completed">Complete</a><a href="#/o/list">Daftar Anime</a><i class="sp"></i><a href="#/o/genres">Genre</a><a href="#/o/schedule">Jadwal</a></nav></header>
+<nav id="nv"><a href="#/o/ongoing">Ongoing</a><a href="#/o/completed">Complete</a><a href="#/o/list">Daftar Anime</a><i class="sp"></i><a href="#/dh">Donghua</a><a href="#/o/genres">Genre</a><a href="#/o/schedule">Jadwal</a></nav></header>
 <main id="app"></main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
 <script>
@@ -217,7 +217,7 @@ function walkObjects(value,out=[]){
 }
 function findVideo(value){
   if(!value||typeof value!=='object')return '';
-  for(const k of ['defaultStreamingUrl','streamingUrl','streamUrl','stream_url']){
+  for(const k of ['defaultStreamingUrl','streamingUrl','streamUrl','stream_url','embed_url','embedUrl','video_url','videoUrl']){
     const v=value[k];if(typeof v==='string'&&/^https?:\/\//i.test(v))return v;
   }
   const rest=Array.isArray(value)?value:Object.fromEntries(Object.entries(value).filter(([k])=>k!=='downloadUrl'));
@@ -235,6 +235,7 @@ function episodeServerButtons(data){
   qs.forEach(q=>(q.serverList||[]).forEach(sv=>{
     if(sv&&sv.serverId){const nm=String(sv.title||'').trim(),ql=String(q.title||'').trim();items.push({id:String(sv.serverId),name:ql&&!nm.toLowerCase().includes(ql.toLowerCase())?nm+' '+ql:nm});}
   }));
+  if(!items.length)walkObjects(data).forEach(o=>{if(o&&o.serverId)items.push({id:String(o.serverId),name:String(o.title||o.name||o.serverId)})});
   return [...new Map(items.map(x=>[x.id,x])).values()];
 }
 async function playSankaEpisode(slug,title,src='sh'){
@@ -271,7 +272,7 @@ async function playSankaEpisode(slug,title,src='sh'){
       }catch(e){$('#sanka-status').textContent='Gagal memuat server: '+e.message;}
     };
     return true;
-  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka di ${E(SRC[src].name)} ↗</a></div>`;return false;}
+  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||(src==='dh'&&window.dhUrl)||SRC[src].site)}">Buka di ${E(SRC[src].name)} ↗</a></div>`;return false;}
 }
 function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
   if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
@@ -351,7 +352,7 @@ const chShort=c=>c.num!=null?'Ch. '+c.num:'Oneshot';
 const contRead=()=>{const l=Object.entries(prog()).filter(([,x])=>x.t&&x.ch).sort((a,b)=>b[1].ts-a[1].ts).slice(0,10);return l.length?`<h2>📖 Lanjut Membaca</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/r/${E(x.ch)}"><div class="im">${mImg(x.c,x.t)}<span class="bd b2">${E(x.l||'Lanjut')}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''};
 function vFav(tab){
   const t=tab==='a'||tab==='m'?tab:'';
-  const l=Object.entries(favs()).filter(([k,x])=>x&&x.h&&x.h[0]==='#'&&(!t||(t==='a'?/^[ao]:/.test(k):k[0]==='m'))).sort((a,b)=>b[1].ts-a[1].ts);
+  const l=Object.entries(favs()).filter(([k,x])=>x&&x.h&&x.h[0]==='#'&&(!t||(t==='a'?/^[aod]:/.test(k):k[0]==='m'))).sort((a,b)=>b[1].ts-a[1].ts);
   const tb=`<div class="tabs">${[['','Semua'],['a','Anime'],['m','Manga']].map(([v,n])=>`<a href="#/fav${v?'/'+v:''}"${v===t?' class="on"':''}>${n}</a>`).join('')}</div>`;
   app.innerHTML=`<h2>❤ Favorit</h2>${tb}`+(l.length?`<div class="g">${l.map(([k,x])=>`<a class="c" href="${E(x.h)}"><div class="im">${mImg(x.c,x.t)}<span class="bd">${k[0]==='m'?'Manga':'Anime'}</span><span class="rm" role="button" data-rm="${E(k)}" aria-label="Hapus dari favorit">✕</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:'<div class="msg">Belum ada favorit.<br>Tekan 🤍 Favorit di halaman anime atau manga.</div>');
   document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const o=favs();delete o[b.dataset.rm];setFavs(o);vFav(tab)});
@@ -575,6 +576,58 @@ async function vOtaEp(id){
   await playSankaEpisode(id,title,'ota');
 }
 
+
+/* ===== DONGHUA (Anichin via Sanka: /donghua/...) ===== */
+SRC.dh={name:'Anichin',ep:'/donghua/episode/',sv:'/donghua/server/',site:'https://anichin.moe'};
+const dhSlug=a=>String(a.slug||(a.href||'').split('/').filter(Boolean).pop()||'');
+const dhIsEp=a=>/\/donghua\/episode\//.test(a.href||'');
+const dhImg=(src,alt)=>src?`<img loading="lazy" referrerpolicy="no-referrer" src="${E(src)}" alt="${E(alt)}" onerror="this.style.display='none'">`:'';
+const dhCard=a=>{const s=dhSlug(a);return `<a class="c ota-card" href="${dhIsEp(a)?'#/dh/e/':'#/dh/d/'}${enc(s)}"><div class="im">${dhImg(a.poster,a.title)}${a.current_episode?`<span class="bd b2">${E(a.current_episode)}</span>`:''}${a.type&&a.type!=='Donghua'?`<span class="bd">${E(a.type)}</span>`:''}</div><div class="nm">${E(a.title)}</div><div class="ota-meta">${[a.status,a.sub].filter(Boolean).map(x=>`<span>${E(x)}</span>`).join('')}</div></a>`};
+const dhGrid=l=>l.length?`<div class="g">${l.map(dhCard).join('')}</div>`:'<div class="msg">Tidak ada data.</div>';
+const dhUniq=l=>[...new Map(l.filter(x=>x&&x.title).map(x=>[dhSlug(x)+(dhIsEp(x)?'#e':''),x])).values()];
+const dhLists=d=>Object.entries(d||{}).filter(([,v])=>Array.isArray(v)&&v.length&&v[0]&&typeof v[0]==='object'&&v[0].title).map(([k,v])=>[k,dhUniq(v)]);
+const DHN={latest_donghua:'🆕 Donghua Terbaru',latest_release:'🆕 Rilis Terbaru',ongoing_donghua:'📺 Sedang Tayang',completed_donghua:'✅ Selesai'};
+const dhTabs=k=>`<div class="tabs">${[['','Beranda','#/dh'],['latest','Terbaru','#/dh/latest'],['ongoing','Ongoing','#/dh/ongoing'],['completed','Complete','#/dh/completed']].map(([v,n,h])=>`<a href="${h}"${v===k?' class="on"':''}>${n}</a>`).join('')}</div>`;
+async function vDhHome(){
+  app.innerHTML=SK;
+  const d=await sankaFetch('/donghua/home');
+  const ls=dhLists(d);
+  app.innerHTML=dhTabs('')+(ls.length?ls.map(([k,l])=>`<h2>${E(DHN[k]||k.replace(/_/g,' '))}</h2>${dhGrid(l)}`+(k==='ongoing_donghua'?'<div class="pg"><a class="btn s" href="#/dh/ongoing">Lihat semua →</a></div>':k==='completed_donghua'?'<div class="pg"><a class="btn s" href="#/dh/completed">Lihat semua →</a></div>':'')).join(''):'<div class="msg">Data donghua kosong.</div>')+'<p class="mu" style="text-align:center">Sumber: Anichin via Sanka API</p>';
+}
+async function vDhList(kind,pg){
+  app.innerHTML=SK;pg=Math.max(1,+pg||1);
+  if(kind!=='completed'&&kind!=='latest')kind='ongoing';
+  let l=[];
+  try{const d=await sankaFetch('/donghua/'+kind+(pg>1?'?page='+pg:''));const ls=dhLists(d);l=ls.length?ls[0][1]:[]}catch(e){if(kind!=='completed'||pg>1)throw e}
+  if(!l.length&&kind==='completed'&&pg===1){const ls=dhLists(await sankaFetch('/donghua/home')).filter(x=>x[0]==='completed_donghua');l=ls.length?ls[0][1]:[]}
+  app.innerHTML=dhTabs(kind)+`<div class="ota-head"><h2>${{ongoing:'Donghua Sedang Tayang',latest:'Donghua Terbaru',completed:'Donghua Selesai'}[kind]}</h2><span class="mu">Hal. ${pg}</span></div>${dhGrid(l)}<div class="pg">${pg>1?`<a class="btn s" href="#/dh/${kind}/${pg-1}">← Sebelumnya</a>`:''}${l.length?`<a class="btn" href="#/dh/${kind}/${pg+1}">Berikutnya →</a>`:''}</div>`;
+}
+async function vDhDetail(slug){
+  app.innerHTML=SK;
+  const raw=await sankaFetch('/donghua/detail/'+enc(slug));
+  const all=walkObjects(raw);
+  const d=all.find(o=>o.title&&(o.poster||o.synopsis||o.genres))||raw||{};
+  const eps=[...new Map(all.filter(o=>o&&o.title&&((o.href&&dhIsEp(o))||(o.slug&&/episode/i.test(o.slug)))).map(o=>[dhSlug(o),o])).values()];
+  const txt=v=>Array.isArray(v)?v.map(txt).join('<br><br>'):v&&typeof v==='object'?txt(v.paragraphs||Object.values(v)):String(v||'');
+  const syn=txt(d.synopsis||d.description||'');
+  const genres=(d.genres||d.genreList||[]).map(g=>typeof g==='string'?g:(g.title||g.name||'')).filter(Boolean);
+  const skip=/^(title|poster|slug|href|anichinUrl|synopsis|description|genres|genreList|episodes|episodeList|status_code|creator)$/;
+  const info=Object.entries(d).filter(([k,v])=>!skip.test(k)&&(typeof v==='string'||typeof v==='number')&&String(v).trim()&&v!=='success'&&!/^https?:\/\//.test(v)).slice(0,10);
+  const first=eps.length?eps[eps.length-1]:null;
+  app.innerHTML=`<div class="d"><div class="cv">${dhImg(d.poster,d.title||slug)}</div><div class="in"><h2 style="margin-top:0">${E(d.title||slug.replace(/-/g,' '))}</h2>
+  <div class="chips">${genres.map(g=>`<span class="chip">${E(g)}</span>`).join('')}</div>
+  <div class="dt">${info.map(([k,v])=>`<div><span>${E(k.replace(/_/g,' '))}</span><br>${E(v)}</div>`).join('')}</div>
+  ${first?`<a class="btn" href="#/dh/e/${enc(dhSlug(first))}">▶ Mulai nonton</a>`:''}<a class="btn s" target="_blank" rel="noopener" href="https://anichin.moe/${enc(slug)}/">Anichin ↗</a>${favBtn('d:'+slug)}</div></div>
+  ${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/dh/e/${enc(dhSlug(e))}"><b>${E(e.episode||e.current_episode||e.title)}</b><small>${E(e.date||e.released||'')}</small></a>`).join('')}</div>`:'<div class="msg">Daftar episode tidak ditemukan pada respons API.</div>'}`;
+  bindFav('d:'+slug,{t:d.title||slug,c:d.poster||'',h:'#/dh/d/'+enc(slug)});
+}
+async function vDhEp(slug){
+  const title=slug.replace(/-subtitle-indonesia$/,'').replace(/-/g,' ');
+  window.dhUrl='https://anichin.moe/'+enc(slug)+'/';
+  app.innerHTML=`<div class="bar"><a class="btn s" href="#/dh">← Donghua</a><b style="flex:1">${E(title)}</b></div><div class="pl" id="pl"></div><div class="bar" style="justify-content:center"><a class="btn s" target="_blank" rel="noopener" href="${E(window.dhUrl)}">Buka di Anichin ↗</a></div>`;
+  await playSankaEpisode(slug,title,'dh');
+}
+
 /* ===== MANGA (MangaDex via /api/md) ===== */
 const MR='&contentRating[]=safe&contentRating[]=suggestive';
 async function mdFetch(path){
@@ -714,6 +767,14 @@ async function route(){
       case'r':return await vReader(p[1]);
       case'fav':return vFav(p[1]);
       case'set':return vSettings();
+      case'dh':
+        switch(p[1]){
+          case undefined:case'':return await vDhHome();
+          case'ongoing':case'completed':case'latest':return await vDhList(p[1],p[2]);
+          case'd':return await vDhDetail(p[2]);
+          case'e':return await vDhEp(p[2]);
+        }
+        break;
       case'o':
         switch(p[1]){
           case'ongoing':return await vOtaList('ongoing',p[2]);
