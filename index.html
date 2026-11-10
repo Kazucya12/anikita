@@ -197,7 +197,7 @@ async function sankaAutoEpisode(titles,ep){
     if(!best||results[0]._sc>best._sc)best=results[0];
     if(best._sc>=0.5)break;
   }
-  if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan di katalog Samehadaku melalui Sanka.');
+  if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan.');
   window.shUrl=best.samehadakuUrl||'';
   const detail=await sankaFetch(SRC.sh.anime+encodeURIComponent(best.animeId));
   const eps=walkObjects(detail).filter(o=>o.episodeId);
@@ -217,12 +217,12 @@ async function otaAutoEpisode(titles,ep){
     rs.forEach(o=>{o._sc=sankaScore(o.title,titles)-(/batch/i.test(o.title)?0.3:0)});rs.sort((x,y)=>y._sc-x._sc);
     if(!best||rs[0]._sc>best._sc)best=rs[0];if(best._sc>=0.5)break;
   }
-  if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan di Otakudesu.');
+  if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan.');
   const detail=await sankaFetch('/anime/anime/'+encodeURIComponent(best.animeId));
   const eps=walkObjects(detail).filter(o=>o.episodeId);
   const re=new RegExp('(episode|ep)\\.?\\s*0*'+ep+'(?!\\d)','i');
   const hit=eps.find(o=>String(o.eps)===String(ep))||eps.find(o=>re.test(String(o.title||'')));
-  if(!hit)throw Error('Episode '+ep+' belum tersedia di Otakudesu.');
+  if(!hit)throw Error('Episode '+ep+' belum tersedia.');
   return String(hit.episodeId);
 }
 const sankaEpisode=(slug,src='sh')=>sankaFetch(SRC[src].ep+encodeURIComponent(slug));
@@ -257,7 +257,7 @@ function episodeServerButtons(data){
 }
 async function playSankaEpisode(slug,title,src='sh'){
   const box=$('#pl'); if(!box)return;
-  box.innerHTML='<div class="msg">Menghubungkan ke Sanka API ('+SRC[src].name+')…</div>';
+  box.innerHTML='<div class="msg">Memuat video…</div>';
   try{
     const data=await sankaEpisode(slug,src);
     const direct=findVideo(data);
@@ -279,7 +279,7 @@ async function playSankaEpisode(slug,title,src='sh'){
       }
       return true;
     }
-    if(!servers.length)throw Error('Detail episode diterima, tetapi daftar server video tidak ditemukan pada respons API.');
+    if(!servers.length)throw Error('Server video tidak ditemukan.');
     box.innerHTML='<div style="padding:16px;width:100%"><b>Pilih server video</b><div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status">Pilih salah satu server untuk memuat video.</p></div>';
     $('#sanka-servers').onclick=async ev=>{
       const b=ev.target.closest('[data-sanka-server]');if(!b)return;
@@ -289,7 +289,7 @@ async function playSankaEpisode(slug,title,src='sh'){
       }catch(e){$('#sanka-status').textContent='Gagal memuat server: '+e.message;}
     };
     return true;
-  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka di ${E(SRC[src].name)} ↗</a></div>`;return false;}
+  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat video.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka sumber ↗</a></div>`;return false;}
 }
 function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
   if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
@@ -402,7 +402,7 @@ async function vAnime(id){
   ${m.nextAiringEpisode&&m.nextAiringEpisode.airingAt?`<div class="mu" style="margin:8px 0">⏰ Eps ${m.nextAiringEpisode.episode} tayang <b>${E(fullWIB(m.nextAiringEpisode.airingAt))}</b> (${E(rel(m.nextAiringEpisode.airingAt))})</div>`:''}
   ${TR(m)}${total?`<button class="btn" id="pf">▶ Tonton Eps ${h&&h.e?h.e:1}</button>`:''}${favBtn('a:'+id)}</div></div>
   <div class="pl" id="pl"><div class="msg">${total?'Pilih episode untuk mulai menonton.':'Belum ada episode yang tayang.'}</div></div>
-  ${total?`<div class="chips" id="srcbar"><button class="chip on" data-src="auto">Otomatis</button><button class="chip" data-src="sh">Samehadaku</button><button class="chip" data-src="ota">Otakudesu</button><button class="chip" data-src="yt">YouTube</button></div><p class="mu" id="srcst"></p>`:''}
+  ${total?`<div class="chips" id="srcbar"><button class="chip on" data-src="auto">Otomatis</button><button class="chip" data-src="sh">Server 1</button><button class="chip" data-src="ota">Server 2</button><button class="chip" data-src="yt">YouTube</button></div><p class="mu" id="srcst"></p>`:''}
   ${total?`<div class="bar"><b>Episode</b>${total>40?`<input class="jp" id="jp" type="number" min="1" max="${total}" placeholder="Ke eps">`:''}</div><div class="eps" id="eps">${Array.from({length:total},(_,i)=>`<button data-e="${i+1}">${i+1}</button>`).join('')}</div>`:''}
   <div id="off">${OFF(m)}</div>${SY(clean(m.description))}`;
   bindFav('a:'+id,{t:T(m),c:m.coverImage.large,h:'#/a/'+id});
@@ -417,10 +417,10 @@ async function vAnime(id){
     window.nextEp=()=>{if(cfg().an!==false&&cur<total)play(cur+1)};
     const pf=$('#pf');if(pf)pf.textContent='▶ Tonton Eps '+ep;
     const chain=mode==='auto'?['sh','ota','yt']:[mode];
-    const names={sh:'Samehadaku',ota:'Otakudesu',yt:'YouTube'};const fails=[];
+    const names={sh:'Server 1',ota:'Server 2',yt:'YouTube'};const fails=[];
     for(const src of chain){
       if(my!==tok)return;
-      box.innerHTML='<div class="msg">Mencari Eps '+ep+' di '+names[src]+'…</div>';
+      box.innerHTML='<div class="msg">Memuat Eps '+ep+'…</div>';
       if(st)st.textContent=fails.length?fails.join(' • '):'';
       try{
         if(src==='yt'){
@@ -428,13 +428,13 @@ async function vAnime(id){
           if(!j||!j.id)throw Error(j&&j.error==='no key'?'API key YouTube belum diisi':'tidak ada episode resmi');
           if(my!==tok)return;
           box.innerHTML=`<iframe src="https://www.youtube.com/embed/${E(j.id)}?autoplay=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
-          if(st)st.textContent='Sumber: YouTube resmi'+(fails.length?' • '+fails.join(' • '):'');return;
+          if(st)st.textContent='Server: YouTube resmi'+(fails.length?' • '+fails.join(' • '):'');return;
         }
         const slug=src==='sh'?await sankaAutoEpisode(titles,ep):await otaAutoEpisode(titles,ep);
         if(my!==tok)return;
         const okk=await playSankaEpisode(slug,T(m),src);
         if(my!==tok)return;
-        if(okk){if(st)st.textContent='Sumber: '+names[src]+(fails.length?' • '+fails.join(' • '):'');return}
+        if(okk){if(st)st.textContent='Server: '+names[src]+(fails.length?' • '+fails.join(' • '):'');return}
         fails.push(names[src]+': gagal memutar');
       }catch(e){fails.push(names[src]+': '+(e.message||'gagal').slice(0,80))}
     }
