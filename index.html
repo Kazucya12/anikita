@@ -78,10 +78,18 @@ main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 .hr{display:flex;align-items:center;gap:10px;width:100%}.seg{display:flex;flex:1;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:3px}.seg a{flex:1;text-align:center;padding:7px 0;border-radius:99px;color:var(--mu);font-weight:700}.seg a.on{background:linear-gradient(90deg,var(--ac),var(--ac2));color:#fff}#sf{flex:1 1 100%;max-width:none}
 .c .im img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
 .cv img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}.c .im img{position:absolute;inset:0}.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:8px 0 4px}.tabs::-webkit-scrollbar{display:none}.tabs a{flex:0 0 auto;white-space:nowrap;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:8px 16px;font-weight:600;color:var(--mu)}.tabs a.on{background:linear-gradient(90deg,var(--ac),var(--ac2));border-color:transparent;color:#fff}.pg{display:flex;gap:10px;justify-content:center;margin-top:18px}
+.rm{position:absolute;right:6px;top:6px;width:28px;height:28px;border-radius:99px;background:rgba(14,15,26,.88);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;font-size:13px}
+.cl a.rdn{opacity:.55}
+.fl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.fl input{flex:1 1 180px;min-width:0;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:8px 14px;outline:0}
+.az{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:6px 0 10px}.az::-webkit-scrollbar{display:none}
+.az .chip{flex:0 0 auto;padding:4px 11px;min-height:32px;cursor:pointer}
+.pg{display:flex;gap:10px;justify-content:center;margin:16px 0}
+.rs{text-align:center;margin:6px 0}.rs a{color:var(--ac);font-weight:700}
 </style>
 </head>
 <body>
-<header><div class="hr"><a class="logo" href="#/">KUMORI</a><div class="seg"><a id="ta" href="#/">Anime</a><a id="tm" href="#/m">Manga</a></div><a class="ib" href="#/set" aria-label="Pengaturan">⚙</a></div>
+<header><div class="hr"><a class="logo" href="#/">KUMORI</a><div class="seg"><a id="ta" href="#/">Anime</a><a id="tm" href="#/m">Manga</a></div><a class="ib" href="#/fav" aria-label="Favorit">❤</a><a class="ib" href="#/set" aria-label="Pengaturan">⚙</a></div>
 <form id="sf"><input id="si" placeholder="Cari anime…"></form>
 <nav id="nv"><a href="#/o/ongoing">Ongoing</a><a href="#/o/completed">Complete</a><a href="#/o/list">Daftar Anime</a><i class="sp"></i><a href="#/o/genres">Genre</a><a href="#/o/schedule">Jadwal</a></nav></header>
 <main id="app"></main>
@@ -332,6 +340,22 @@ const clean=t=>String(t||'').replace(/<(?!br\s*\/?>)[^>]*>/gi,'').trim();
 const enc=encodeURIComponent;
 const saveCfg=o=>{try{localStorage.setItem('k',JSON.stringify({...cfg(),...o}))}catch{}};
 const saveHist=(id,x)=>{try{const h=hist();h[id]={...h[id],...x,ts:Date.now()};const k=Object.keys(h).sort((a,b)=>h[b].ts-h[a].ts).slice(0,30);const n={};k.forEach(i=>n[i]=h[i]);localStorage.setItem('kw',JSON.stringify(n))}catch{}};
+/* ===== FAVORIT + PROGRES BACA ===== */
+const favs=()=>{try{return JSON.parse(localStorage.getItem('kf'))||{}}catch{return{}}};
+const setFavs=o=>{try{localStorage.setItem('kf',JSON.stringify(o))}catch{}};
+const favBtn=k=>`<button class="btn s" data-fav="${E(k)}">${favs()[k]?'❤ Favorit':'🤍 Favorit'}</button>`;
+const bindFav=(k,d)=>{const b=[...document.querySelectorAll('[data-fav]')].find(x=>x.dataset.fav===k);if(!b)return;b.onclick=()=>{const f=favs();if(f[k])delete f[k];else f[k]={...d,ts:Date.now()};setFavs(f);b.textContent=f[k]?'❤ Favorit':'🤍 Favorit'}};
+const prog=()=>{try{return JSON.parse(localStorage.getItem('kr'))||{}}catch{return{}}};
+const saveProg=(mid,d)=>{try{const p=prog();p[mid]={...(p[mid]||{}),...d,ts:Date.now()};const ks=Object.keys(p).sort((a,b)=>p[b].ts-p[a].ts).slice(0,60);const n={};ks.forEach(k=>n[k]=p[k]);localStorage.setItem('kr',JSON.stringify(n))}catch{}};
+const chShort=c=>c.num!=null?'Ch. '+c.num:'Oneshot';
+const contRead=()=>{const l=Object.entries(prog()).filter(([,x])=>x.t&&x.ch).sort((a,b)=>b[1].ts-a[1].ts).slice(0,10);return l.length?`<h2>📖 Lanjut Membaca</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/r/${E(x.ch)}"><div class="im">${mImg(x.c,x.t)}<span class="bd b2">${E(x.l||'Lanjut')}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''};
+function vFav(tab){
+  const t=tab==='a'||tab==='m'?tab:'';
+  const l=Object.entries(favs()).filter(([k,x])=>x&&x.h&&x.h[0]==='#'&&(!t||(t==='a'?/^[ao]:/.test(k):k[0]==='m'))).sort((a,b)=>b[1].ts-a[1].ts);
+  const tb=`<div class="tabs">${[['','Semua'],['a','Anime'],['m','Manga']].map(([v,n])=>`<a href="#/fav${v?'/'+v:''}"${v===t?' class="on"':''}>${n}</a>`).join('')}</div>`;
+  app.innerHTML=`<h2>❤ Favorit</h2>${tb}`+(l.length?`<div class="g">${l.map(([k,x])=>`<a class="c" href="${E(x.h)}"><div class="im">${mImg(x.c,x.t)}<span class="bd">${k[0]==='m'?'Manga':'Anime'}</span><span class="rm" role="button" data-rm="${E(k)}" aria-label="Hapus dari favorit">✕</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:'<div class="msg">Belum ada favorit.<br>Tekan 🤍 Favorit di halaman anime atau manga.</div>');
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const o=favs();delete o[b.dataset.rm];setFavs(o);vFav(tab)});
+}
 const errBox=(e,retry)=>`<div class="msg">Terjadi kesalahan.<br><small>${E(e&&e.message||e)}</small><br><br><button class="btn" onclick="${retry||'route()'}">Coba lagi</button></div>`;
 const FL='id title{romaji english} coverImage{large}averageScore nextAiringEpisode{episode airingAt}';
 const section=(t,l)=>l&&l.length?`<h2>${t}</h2>${grid(l)}`:'';
@@ -358,11 +382,12 @@ async function vAnime(id){
   <div class="mu">${[m.seasonYear,m.status,m.averageScore?'★ '+(m.averageScore/10).toFixed(1):'',total?total+' eps':''].filter(Boolean).map(E).join(' • ')}</div>
   <div class="chips">${(m.genres||[]).map(g=>`<span class="chip">${E(g)}</span>`).join('')}</div>
   ${m.nextAiringEpisode&&m.nextAiringEpisode.airingAt?`<div class="mu" style="margin:8px 0">⏰ Eps ${m.nextAiringEpisode.episode} tayang <b>${E(fullWIB(m.nextAiringEpisode.airingAt))}</b> (${E(rel(m.nextAiringEpisode.airingAt))})</div>`:''}
-  ${TR(m)}${total?`<button class="btn" id="pf">▶ Tonton Eps ${h&&h.e?h.e:1}</button>`:''}</div></div>
+  ${TR(m)}${total?`<button class="btn" id="pf">▶ Tonton Eps ${h&&h.e?h.e:1}</button>`:''}${favBtn('a:'+id)}</div></div>
   <div class="pl" id="pl"><div class="msg">${total?'Pilih episode untuk mulai menonton.':'Belum ada episode yang tayang.'}</div></div>
   ${total?`<div class="chips" id="srcbar"><button class="chip on" data-src="auto">Otomatis</button><button class="chip" data-src="sh">Samehadaku</button><button class="chip" data-src="ota">Otakudesu</button><button class="chip" data-src="yt">YouTube</button></div><p class="mu" id="srcst"></p>`:''}
   ${total?`<div class="bar"><b>Episode</b>${total>40?`<input class="jp" id="jp" type="number" min="1" max="${total}" placeholder="Ke eps">`:''}</div><div class="eps" id="eps">${Array.from({length:total},(_,i)=>`<button data-e="${i+1}">${i+1}</button>`).join('')}</div>`:''}
   <div id="off">${OFF(m)}</div>${SY(clean(m.description))}`;
+  bindFav('a:'+id,{t:T(m),c:m.coverImage.large,h:'#/a/'+id});
   let cur=0,tok=0,mode='auto';
   const play=async ep=>{
     cur=ep;const my=++tok;
@@ -427,12 +452,39 @@ async function vOtaAll(){
   try{
     const d=await sankaFetch('/anime/unlimited');
     const l=walkObjects(d).filter(x=>x.title&&x.animeId);
-    if(l.length)flat=[...new Map(l.map(x=>[x.animeId,x])).values()].sort((a,b)=>a.title.localeCompare(b.title));
+    if(l.length)flat=[...new Map(l.map(x=>[x.animeId,x])).values()];
   }catch{}
-  if(!flat){app.innerHTML=`<div class="ota-head"><h2>Daftar Anime</h2><span class="mu">${(o.animeList||[]).length} judul</span></div>`+otaGrid(o.animeList||[]);return}
-  app.innerHTML=`<div class="ota-head"><h2>Daftar Anime</h2><span class="mu">${flat.length} judul</span></div><div class="f" style="max-width:none;margin-bottom:10px"><input id="lf" placeholder="Filter judul…"></div><div class="cl" id="ll"></div>`;
-  const draw=q=>{$('#ll').innerHTML=flat.filter(x=>x.title.toLowerCase().includes(q)).slice(0,400).map(x=>`<a ${oLink(x)}>${E(x.title)}</a>`).join('')||'<div class="msg">Tidak ada hasil.</div>'};
-  draw('');$('#lf').oninput=e=>draw(e.target.value.toLowerCase().trim());
+  if(!flat)flat=(o.animeList||[]).slice();
+  const lt=x=>{const c=String(x.title||'').trim().charAt(0).toUpperCase();return /[A-Z]/.test(c)?c:'#'};
+  const letters=[...new Set(flat.map(lt))].sort((a,b)=>a==='#'?-1:b==='#'?1:a.localeCompare(b));
+  const hasSc=flat.some(x=>+x.score),cards=flat.some(x=>x.poster);
+  const sts=[...new Set(flat.map(x=>x.status).filter(Boolean))].sort();
+  const gs=[...new Map(flat.flatMap(x=>x.genreList||[]).map(g=>[g.genreId,g.title])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+  app.innerHTML=`<div class="ota-head"><h2>Daftar Anime</h2><span class="mu" id="cnt"></span></div>
+  <div class="fl"><input id="lf" placeholder="Cari judul…" aria-label="Cari judul">
+  <select class="sm" id="so" aria-label="Urutkan"><option value="az">A → Z</option><option value="za">Z → A</option>${hasSc?'<option value="sc">Skor tertinggi</option>':''}</select>
+  ${sts.length?`<select class="sm" id="fs" aria-label="Status"><option value="">Semua status</option>${sts.map(x=>`<option>${E(x)}</option>`).join('')}</select>`:''}
+  ${gs.length?`<select class="sm" id="fg" aria-label="Genre"><option value="">Semua genre</option>${gs.map(([i,t])=>`<option value="${E(i)}">${E(t)}</option>`).join('')}</select>`:''}</div>
+  <div class="az" id="az"><button class="chip on" data-ch="">Semua</button>${letters.map(c=>`<button class="chip" data-ch="${E(c)}">${E(c)}</button>`).join('')}</div>
+  <div id="ll"></div><div class="pg"><button class="btn s" id="mr">Muat lebih banyak</button></div>
+  <p class="mu" style="text-align:center"><a href="#/o/genres" style="color:var(--ac)">Telusuri semua genre →</a></p>`;
+  const st={q:'',ch:'',so:'az',st:'',gn:'',n:120};
+  const draw=()=>{
+    let l=flat.filter(x=>(!st.q||String(x.title).toLowerCase().includes(st.q))&&(!st.ch||lt(x)===st.ch)&&(!st.st||x.status===st.st)&&(!st.gn||(x.genreList||[]).some(g=>g.genreId===st.gn)));
+    l.sort(st.so==='za'?(a,b)=>b.title.localeCompare(a.title):st.so==='sc'?(a,b)=>(+b.score||0)-(+a.score||0):(a,b)=>a.title.localeCompare(b.title));
+    $('#cnt').textContent=l.length+' / '+flat.length+' judul';
+    const part=l.slice(0,st.n);
+    $('#ll').innerHTML=part.length?(cards?`<div class="g">${part.map(otaCard).join('')}</div>`:`<div class="cl">${part.map(x=>`<a ${oLink(x)}>${E(x.title)}</a>`).join('')}</div>`):'<div class="msg">Tidak ada hasil.</div>';
+    $('#mr').style.display=l.length>st.n?'':'none';
+    document.querySelectorAll('#az .chip').forEach(b=>b.classList.toggle('on',b.dataset.ch===st.ch));
+  };
+  let t0;$('#lf').oninput=e=>{clearTimeout(t0);t0=setTimeout(()=>{st.q=e.target.value.toLowerCase().trim();st.n=120;draw()},150)};
+  $('#so').onchange=e=>{st.so=e.target.value;st.n=120;draw()};
+  const fs=$('#fs');if(fs)fs.onchange=e=>{st.st=e.target.value;st.n=120;draw()};
+  const fg=$('#fg');if(fg)fg.onchange=e=>{st.gn=e.target.value;st.n=120;draw()};
+  $('#az').onclick=e=>{const b=e.target.closest('[data-ch]');if(!b)return;st.ch=b.dataset.ch;st.n=120;draw()};
+  $('#mr').onclick=()=>{st.n+=120;draw()};
+  draw();
 }
 async function vOtaGenres(){
   app.innerHTML=SK;const o=await otakuData();
@@ -497,8 +549,9 @@ async function vOtaDetail(id){
   app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(d.poster)}')"></div><div class="in"><h2 style="margin-top:0">${E(d.title)}</h2>
   <div class="chips">${(d.genreList||[]).map(g=>`<a class="chip" href="#/o/g/${enc(g.genreId)}">${E(g.title)}</a>`).join('')}</div>
   <div class="dt">${info.map(x=>`<div><span>${E(x[0])}</span><br>${E(x[1])}</div>`).join('')}</div>
-  ${eps.length?`<a class="btn" href="#/o/e/${enc(eps[eps.length-1].episodeId)}">▶ Mulai dari Eps ${E(eps[eps.length-1].eps)}</a>`:''}</div></div>
+  ${eps.length?`<a class="btn" href="#/o/e/${enc(eps[eps.length-1].episodeId)}">▶ Mulai dari Eps ${E(eps[eps.length-1].eps)}</a>`:''}${favBtn('o:'+id)}</div></div>
   <div id="airln"></div>${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/o/e/${enc(e.episodeId)}"><b>Episode ${E(e.eps)}</b><small>${E(e.date||'')}</small></a>`).join('')}</div>`:'<div class="msg">Belum ada episode.</div>'}`;
+  bindFav('o:'+id,{t:d.title,c:d.poster,h:'#/o/d/'+enc(id)});
   otaDetailAir(d);
 }
 async function otaDetailAir(d){
@@ -544,7 +597,7 @@ async function vMangaHome(){
   app.innerHTML=SK;const L=mLang();
   const [a,b]=await Promise.all([mdFetch(mQ('ongoing',1)),mdFetch(mQ('done',1))]);
   const more=k=>`<div class="pg"><a class="btn s" href="#/m/t/${k}">Lihat semua →</a></div>`;
-  app.innerHTML=mTabs('')+`<div class="mu">Bahasa: ${L==='id'?'Indonesia':'English'} • data langsung dari MangaDex, selalu terbaru</div><h2>${MK.ongoing.h}</h2>${mGrid(a.data)}${more('ongoing')}<h2>${MK.done.h}</h2>${mGrid(b.data)}${more('done')}`;
+  app.innerHTML=mTabs('')+contRead()+`<div class="mu">Bahasa: ${L==='id'?'Indonesia':'English'} • data langsung dari MangaDex, selalu terbaru</div><h2>${MK.ongoing.h}</h2>${mGrid(a.data)}${more('ongoing')}<h2>${MK.done.h}</h2>${mGrid(b.data)}${more('done')}`;
 }
 async function vMangaList(k,pg){
   if(!MK[k])k='pop';pg=Math.max(1,+pg||1);
@@ -581,14 +634,17 @@ async function vManga(id){
   const tags=(a.tags||[]).map(t=>t.attributes.name.en).filter(Boolean);
   const au=(m.relationships||[]).filter(r=>r.type==='author').map(r=>r.attributes&&r.attributes.name).filter(Boolean).join(', ');
   const rev=chs.slice().reverse();
+  window._mm={id,t:mT(m),c:mCover(m,256)};
+  const pr=prog()[id],prc=pr&&chs.find(c=>c.id===pr.ch),rs=new Set((pr&&pr.r)||[]);
   app.innerHTML=`<div class="d"><div class="cv">${mImg(mCover(m,512),mT(m))}</div><div class="in"><h2 style="margin-top:0">${E(mT(m))}</h2>
   <div class="mu">${[au,a.year,a.status,chs.length?chs.length+' chapter':''].filter(Boolean).map(E).join(' • ')}</div>
   ${chs.length?`<div class="mu" style="margin:6px 0">🕒 Chapter terakhir rilis: <b>${E(fullWIB(chs[chs.length-1].at))}</b>${mEst(chs)?'<br>'+mEst(chs):''}</div>`:''}
   <div class="chips">${tags.slice(0,8).map(t=>`<span class="chip">${E(t)}</span>`).join('')}</div>
-  ${chs.length?`<a class="btn" href="#/r/${E(chs[0].id)}">▶ Baca ${E(chLabel(chs[0]).split(' – ')[0])}</a> <a class="btn s" href="#/r/${E(chs[chs.length-1].id)}">Terbaru</a>`:''}
+  ${chs.length?`${prc?`<a class="btn" href="#/r/${E(prc.id)}">▶ Lanjut ${E(chShort(prc))}</a> `:''}<a class="btn${prc?' s':''}" href="#/r/${E(chs[0].id)}">${prc?'Dari awal':'▶ Baca '+E(chShort(chs[0]))}</a> <a class="btn s" href="#/r/${E(chs[chs.length-1].id)}">Terbaru</a>`:''}${favBtn('m:'+id)}
   <div class="bar" style="margin-top:10px"><span class="mu">Bahasa:</span><button class="chip${L==='id'?' on':''}" data-l="id">Indonesia</button><button class="chip${L==='en'?' on':''}" data-l="en">English</button></div></div></div>
-  ${SY(desc)}<h2>Chapter</h2>${chs.length?`<div class="cl">${rev.map(c=>`<a href="#/r/${E(c.id)}">${E(chLabel(c))}${chTime(c)}</a>`).join('')}</div>`:`<div class="msg">Belum ada chapter dalam bahasa ${L==='id'?'Indonesia':'English'}.</div>`}`;
+  ${SY(desc)}<h2>Chapter</h2>${chs.length?`<div class="cl">${rev.map(c=>`<a href="#/r/${E(c.id)}"${rs.has(c.id)?' class="rdn"':''}>${rs.has(c.id)?'✓ ':''}${E(chLabel(c))}${chTime(c)}</a>`).join('')}</div>`:`<div class="msg">Belum ada chapter dalam bahasa ${L==='id'?'Indonesia':'English'}.</div>`}`;
   document.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{saveCfg({ml:b.dataset.l});route()});
+  bindFav('m:'+id,{t:mT(m),c:mCover(m,256),h:'#/m/'+id});
 }
 async function vReader(id){
   app.innerHTML=SK;
@@ -600,10 +656,26 @@ async function vReader(id){
   if(meta&&meta.data){const rel=(meta.data.relationships||[]).find(r=>r.type==='manga');mid=rel&&rel.id;lang=meta.data.attributes.translatedLanguage||lang}
   if(mid){try{list=await getChapters(mid,lang)}catch{}}
   const i=list.findIndex(c=>c.id===id),prev=i>0?list[i-1]:null,next=i>=0&&i<list.length-1?list[i+1]:null;
+  const cp=mid?prog()[mid]:null,resume=cp&&cp.ch===id&&cp.p>0?cp.p:0;
+  if(mid){
+    const old=cp||{};
+    saveProg(mid,{ch:id,l:i>=0?chShort(list[i]):'',p:resume,r:[...new Set([...(old.r||[]),id])].slice(-400)});
+    const mm=window._mm&&window._mm.id===mid?window._mm:null;
+    if(mm)saveProg(mid,{t:mm.t,c:mm.c});
+    else if(!old.t)mdFetch('/manga/'+enc(mid)+'?includes[]=cover_art').then(j=>saveProg(mid,{t:mT(j.data),c:mCover(j.data,256)})).catch(()=>{});
+  }
   const nav=`<div class="bar" style="justify-content:space-between;max-width:820px;margin:10px auto">${prev?`<a class="btn s" href="#/r/${E(prev.id)}">← Sebelumnya</a>`:'<span></span>'}${mid?`<a class="btn s" href="#/m/${E(mid)}">☰ Chapter</a>`:''}${next?`<a class="btn" href="#/r/${E(next.id)}">Berikutnya →</a>`:'<span></span>'}</div>`;
-  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${nav}<div class="rd">${files.map(f=>`<img loading="lazy" referrerpolicy="no-referrer" src="${E(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f)}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
+  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${resume?`<div class="mu rs">↩ Dilanjutkan dari halaman ${resume+1}. <a href="#/r/${E(id)}" id="rtop">Ke atas</a></div>`:''}${nav}<div class="rd">${files.map((f,n)=>`<img loading="${resume&&n<=resume+1?'eager':'lazy'}" referrerpolicy="no-referrer" src="${E(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f)}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
   const kd=e=>{if(e.key==='ArrowRight'&&next)location.hash='#/r/'+next.id;if(e.key==='ArrowLeft'&&prev)location.hash='#/r/'+prev.id};
   window.addEventListener('keydown',kd);window._kd=kd;
+  let tk=0;
+  const sc=()=>{if(tk||!mid)return;tk=setTimeout(()=>{tk=0;if(location.hash!=='#/r/'+id)return;const im=[...document.querySelectorAll('.rd img')];let k=im.length-1;for(let q=0;q<im.length;q++){if(im[q].getBoundingClientRect().bottom>120){k=q;break}}if(k>=0)saveProg(mid,{p:k})},700)};
+  window.addEventListener('scroll',sc,{passive:true});window._sc=sc;
+  const rt=$('#rtop');if(rt)rt.onclick=e=>{e.preventDefault();window.scrollTo(0,0)};
+  if(resume){
+    const im=[...document.querySelectorAll('.rd img')],tg=im[resume];
+    Promise.race([Promise.all(im.slice(0,resume+1).map(x=>x.complete?0:new Promise(r=>{x.addEventListener('load',r);x.addEventListener('error',r)}))),new Promise(r=>setTimeout(r,5000))]).then(()=>{if(tg&&location.hash==='#/r/'+id)tg.scrollIntoView()});
+  }
 }
 
 /* ===== PENGATURAN ===== */
@@ -613,12 +685,14 @@ function vSettings(){
   <label class="mu">Bahasa manga</label><select id="s-ml"><option value="id"${mLang()==='id'?' selected':''}>Indonesia</option><option value="en"${mLang()==='en'?' selected':''}>English</option></select>
   <label class="mu">Putar episode berikutnya otomatis</label><select id="s-an"><option value="1"${c.an!==false?' selected':''}>Ya</option><option value="0"${c.an===false?' selected':''}>Tidak</option></select>
   <label class="mu">Mode hemat data (manga)</label><select id="s-ds"><option value="0"${!c.ds?' selected':''}>Mati</option><option value="1"${c.ds?' selected':''}>Hidup</option></select>
-  <button class="btn s" id="s-clr">Hapus riwayat tontonan</button><p class="mu" id="s-ok"></p></div>`;
+  <button class="btn s" id="s-clr">Hapus riwayat tontonan</button><button class="btn s" id="s-clr2">Hapus progres baca manga</button><button class="btn s" id="s-clr3">Hapus semua favorit</button><p class="mu" id="s-ok"></p></div>`;
   const ok=()=>{$('#s-ok').textContent='Tersimpan ✓'};
   $('#s-ml').onchange=e=>{saveCfg({ml:e.target.value});ok()};
   $('#s-an').onchange=e=>{saveCfg({an:e.target.value==='1'});ok()};
   $('#s-ds').onchange=e=>{saveCfg({ds:e.target.value==='1'});ok()};
   $('#s-clr').onclick=()=>{try{localStorage.removeItem('kw')}catch{}$('#s-ok').textContent='Riwayat dihapus ✓'};
+  $('#s-clr2').onclick=()=>{try{localStorage.removeItem('kr')}catch{}$('#s-ok').textContent='Progres baca dihapus ✓'};
+  $('#s-clr3').onclick=()=>{if(!confirm('Hapus semua favorit?'))return;try{localStorage.removeItem('kf')}catch{}$('#s-ok').textContent='Favorit dihapus ✓'};
 }
 
 /* ===== ROUTER ===== */
@@ -627,6 +701,7 @@ async function route(){
   const p=h.replace(/^#\/?/,'').split('/').map(x=>{try{return decodeURIComponent(x)}catch{return x}});
   if(hls){try{hls.destroy()}catch{}hls=null}
   if(window._kd){window.removeEventListener('keydown',window._kd);window._kd=null}
+  if(window._sc){window.removeEventListener('scroll',window._sc);window._sc=null}
   window.nextEp=null;
   setNav();window.scrollTo(0,0);
   try{
@@ -637,6 +712,7 @@ async function route(){
       case'm':return p[1]==='t'?await vMangaList(p[2],p[3]):p[1]?await vManga(p[1]):await vMangaHome();
       case'ms':return await vMangaSearch(p.slice(1).join('/'));
       case'r':return await vReader(p[1]);
+      case'fav':return vFav(p[1]);
       case'set':return vSettings();
       case'o':
         switch(p[1]){
