@@ -82,17 +82,20 @@ async function sankaFetch(path){
 }
 function sankaQueries(titles){
   const out=[];
-  const add=x=>{x=String(x||'').trim();if(x&&!out.includes(x))out.push(x)};
+  const add=x=>{x=String(x||'').replace(/\s+/g,' ').trim();if(x&&!out.includes(x))out.push(x)};
   (titles||[]).filter(Boolean).forEach(t=>{
-    add(t);
-    const base=String(t).replace(/\b(\d+(st|nd|rd|th)\s+season|season\s*\d+|part\s*\d+|cour\s*\d+)\b/ig,' ').replace(/[:!?\u2605\u2606]/g,' ').replace(/\s+/g,' ').trim();
+    const clean=String(t).replace(/[^\p{L}\p{N}\s]/gu,' ').replace(/\s+/g,' ').trim();
+    const base=clean.replace(/\b(\d+(st|nd|rd|th)\s+season|season\s*\d+|part\s*\d+|cour\s*\d+)\b/ig,' ').replace(/\s+/g,' ').trim();
+    add(clean);
     add(base);
+    add(base.split(' ').slice(0,4).join(' '));
     add(base.split(' ').slice(0,3).join(' '));
     add(base.split(' ').slice(0,2).join(' '));
+    add(base.split(' ')[0]);
   });
   return out;
 }
-function sankaNorm(t){return String(t||'').toLowerCase().replace(/on-going/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()}
+function sankaNorm(t){return String(t||'').toLowerCase().replace(/on-going|subtitle indonesia|sub indo/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()}
 function sankaSeason(t){const m=String(t||'').toLowerCase().match(/(\d+)(?:st|nd|rd|th)\s+season|season\s*(\d+)|\bs(\d+)\b/);return m?+(m[1]||m[2]||m[3]):1}
 function sankaScore(cand,titles){
   const ct=sankaNorm(cand),cs=new Set(ct.split(' '));let best=0;
