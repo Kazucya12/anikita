@@ -61,7 +61,7 @@ main>*{animation:fin .35s ease both}
 const $=s=>document.querySelector(s),app=$('#app');
 const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cfg=()=>{try{return JSON.parse(localStorage.getItem('k'))||{}}catch{return{}}};
-const F='id title{romaji english} synonymscoverImage{large}averageScore episodes status genres seasonYear description nextAiringEpisode{episode} trailer{id site} externalLinks{url site type} streamingEpisodes{title url site}';
+const F='id title{romaji english} synonyms coverImage{large}averageScore episodes status genres seasonYear description nextAiringEpisode{episode} trailer{id site} externalLinks{url site type} streamingEpisodes{title url site}';
 const gql=async(q,v)=>{const r=await fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,variables:v})});const j=await r.json();if(j.errors)throw Error(j.errors[0].message);return j.data};
 const T=m=>m.title.english||m.title.romaji;
 const card=m=>`<a class="c" href="#/a/${m.id}"><div class="im" style="background-image:url('${E(m.coverImage.large)}')"></div><div class="nm">${E(T(m))}</div></a>`;
