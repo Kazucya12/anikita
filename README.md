@@ -1,6 +1,6 @@
-# Kumori Lite
+# Kumori
 
-Kumori Lite adalah situs katalog anime dan manga ringan berbasis HTML/JavaScript yang dapat di-deploy ke Vercel.
+Kumori adalah situs katalog anime dan manga ringan berbasis HTML/JavaScript yang dapat di-deploy ke Vercel.
 
 ## Deploy ke Vercel
 1. Extract ZIP ini.
