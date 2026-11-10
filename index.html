@@ -80,53 +80,80 @@ async function sankaFetch(path){
   if(j&&j.status==='error') throw Error(j.message||'Sanka API gagal');
   return j&&j.data!==undefined?j.data:j;
 }
-async function sankaAutoEpisode(title,ep){
-  const q=await sankaFetch('/anime/otakudesu/search?q='+encodeURIComponent(title));
-  const results=walkObjects(q).filter(o=>o.title&&(o.slug||o.animeId||o.endpoint||o.id));
-  if(!results.length)throw Error('Anime tidak ditemukan di katalog Otakudesu melalui Sanka.');
-  const wanted=String(title).toLowerCase();
-  results.sort((a,b)=>{
-    const score=o=>{const t=String(o.title||'').toLowerCase();return t===wanted?3:(t.includes(wanted)||wanted.includes(t)?2:1)};
-    return score(b)-score(a);
+function sankaQueries(titles){
+  const out=[];
+  const add=x=>{x=String(x||'').trim();if(x&&!out.includes(x))out.push(x)};
+  (titles||[]).filter(Boolean).forEach(t=>{
+    add(t);
+    const base=String(t).replace(/\b(\d+(st|nd|rd|th)\s+season|season\s*\d+|part\s*\d+|cour\s*\d+)\b/ig,' ').replace(/[:!?\u2605\u2606]/g,' ').replace(/\s+/g,' ').trim();
+    add(base);
+    add(base.split(' ').slice(0,3).join(' '));
+    add(base.split(' ').slice(0,2).join(' '));
   });
-  const animeId=results[0].slug||results[0].animeId||results[0].endpoint||results[0].id;
-  const detail=await sankaFetch('/anime/otakudesu/anime/'+encodeURIComponent(animeId));
-  const episodeLists=walkObjects(detail).filter(o=>Array.isArray(o.episodeList)||Array.isArray(o.episodes));
-  let eps=[];episodeLists.forEach(o=>{eps=eps.concat(o.episodeList||o.episodes||[])});
-  const hit=eps.find(o=>{
-    const t=String(o.title||o.name||o.episode||'');
-    const n=o.episodeNumber||o.number||o.eps||'';
-    return String(n)===String(ep)||new RegExp('(episode|ep)\\.?\\s*0*'+ep+'(?!\\d)','i').test(t);
-  });
-  const slug=hit&&(hit.episodeId||hit.slug||hit.endpoint||hit.id||hit.href);
-  if(!slug)throw Error('Episode '+ep+' tidak ditemukan pada daftar episode Otakudesu.');
-  return String(slug).startsWith('http')?String(slug).split('/').filter(Boolean).pop():String(slug).replace(/^.*\/episode\//,'').replace(/\/$/,'');
+  return out;
 }
-const sankaEpisode=slug=>sankaFetch('/anime/otakudesu/episode/'+encodeURIComponent(slug));
-const sankaServer=id=>sankaFetch('/anime/otakudesu/server/'+encodeURIComponent(id));
+function sankaNorm(t){return String(t||'').toLowerCase().replace(/on-going/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()}
+function sankaSeason(t){const m=String(t||'').toLowerCase().match(/(\d+)(?:st|nd|rd|th)\s+season|season\s*(\d+)|\bs(\d+)\b/);return m?+(m[1]||m[2]||m[3]):1}
+function sankaScore(cand,titles){
+  const ct=sankaNorm(cand),cs=new Set(ct.split(' '));let best=0;
+  titles.filter(Boolean).forEach(t=>{
+    const tt=sankaNorm(t),ts=new Set(tt.split(' '));
+    let inter=0;ts.forEach(w=>{if(cs.has(w))inter++});
+    let sc=inter/Math.max(1,new Set([...ts,...cs]).size);
+    if(ct===tt)sc+=1;
+    if(sankaSeason(cand)===sankaSeason(t))sc+=0.15;else sc-=0.15;
+    if(sc>best)best=sc;
+  });
+  return best;
+}
+async function sankaAutoEpisode(titles,ep){
+  titles=[].concat(titles||[]).filter(Boolean);
+  let best=null,lastErr=null;
+  for(const q of sankaQueries(titles)){
+    let data;
+    try{data=await sankaFetch('/anime/search/'+encodeURIComponent(q))}catch(e){lastErr=e;continue}
+    const results=walkObjects(data).filter(o=>o.title&&o.animeId);
+    if(!results.length)continue;
+    results.forEach(o=>{o._sc=sankaScore(o.title,titles)});
+    results.sort((x,y)=>y._sc-x._sc);
+    if(!best||results[0]._sc>best._sc)best=results[0];
+    if(best._sc>=0.5)break;
+  }
+  if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan di katalog Otakudesu melalui Sanka.');
+  const detail=await sankaFetch('/anime/anime/'+encodeURIComponent(best.animeId));
+  const eps=walkObjects(detail).filter(o=>o.episodeId&&(o.eps!==undefined||o.title));
+  const hit=eps.find(o=>String(o.eps)===String(ep))||eps.find(o=>new RegExp('(episode|ep)\\.?\\s*0*'+ep+'(?!\\d)','i').test(String(o.title||'')));
+  if(!hit)throw Error('Episode '+ep+' tidak ditemukan pada daftar episode Otakudesu.');
+  return String(hit.episodeId);
+}
+const sankaEpisode=slug=>sankaFetch('/anime/episode/'+encodeURIComponent(slug));
+const sankaServer=id=>sankaFetch('/anime/server/'+encodeURIComponent(id));
 function walkObjects(value,out=[]){
   if(!value||typeof value!=='object')return out;
   if(Array.isArray(value)){value.forEach(x=>walkObjects(x,out));return out;}
   out.push(value);Object.values(value).forEach(x=>{if(x&&typeof x==='object')walkObjects(x,out)});return out;
 }
 function findVideo(value){
-  const objs=walkObjects(value);
+  if(!value||typeof value!=='object')return '';
+  for(const k of ['defaultStreamingUrl','streamingUrl','streamUrl','stream_url']){
+    const v=value[k];if(typeof v==='string'&&/^https?:\/\//i.test(v))return v;
+  }
+  const rest=Array.isArray(value)?value:Object.fromEntries(Object.entries(value).filter(([k])=>k!=='downloadUrl'));
+  const objs=walkObjects(rest);
   for(const o of objs){
-    for(const k of ['url','link','file','src','streamUrl','stream_url','embed','iframe']){
-      const v=o[k]; if(typeof v==='string'&&/^https?:\/\//i.test(v))return v;
+    for(const k of ['url','link','file','src','embed','iframe']){
+      const v=o[k];if(typeof v==='string'&&/^https?:\/\//i.test(v)&&!/otakudesu\.|desustream\.com\/\?id=/i.test(v))return v;
     }
   }
   return '';
 }
 function episodeServerButtons(data){
-  const objs=walkObjects(data),items=[];
-  for(const o of objs){
-    const id=o.serverId||o.server_id||o.id;
-    const name=o.title||o.name||o.server;
-    if(id&&name)items.push({id:String(id),name:String(name)});
-  }
-  const unique=[...new Map(items.map(x=>[x.id,x])).values()];
-  return unique;
+  const items=[];
+  const qs=(data&&data.server&&data.server.qualities)||[];
+  qs.forEach(q=>(q.serverList||[]).forEach(sv=>{
+    if(sv&&sv.serverId)items.push({id:String(sv.serverId),name:String(sv.title||'').trim()+' '+String(q.title||'').trim()});
+  }));
+  return [...new Map(items.map(x=>[x.id,x])).values()];
 }
 async function playSankaEpisode(slug,title){
   const box=$('#pl'); if(!box)return;
@@ -134,8 +161,24 @@ async function playSankaEpisode(slug,title){
   try{
     const data=await sankaEpisode(slug);
     const direct=findVideo(data);
-    if(direct){renderSankaSource(box,direct);return;}
     const servers=episodeServerButtons(data);
+    if(direct){
+      renderSankaSource(box,direct);
+      if(servers.length){
+        let bar=document.getElementById('sanka-bar');
+        if(!bar){bar=document.createElement('div');bar.id='sanka-bar';box.parentNode.insertBefore(bar,box.nextSibling)}
+        bar.innerHTML='<div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status">Server lain bila video tidak jalan.</p>';
+        bar.querySelector('#sanka-servers').onclick=async ev=>{
+          const b=ev.target.closest('[data-sanka-server]');if(!b)return;
+          bar.querySelector('#sanka-status').textContent='Memuat server '+b.textContent+'…';
+          try{const d=await sankaServer(b.dataset.sankaServer);const u=findVideo(d);
+            if(!u)throw Error('Server tidak mengembalikan URL video yang dikenali.');
+            renderSankaSource(box,u);bar.querySelector('#sanka-status').textContent='Server: '+b.textContent;
+          }catch(e){bar.querySelector('#sanka-status').textContent='Gagal memuat server: '+e.message;}
+        };
+      }
+      return;
+    }
     if(!servers.length)throw Error('Detail episode diterima, tetapi daftar server video tidak ditemukan pada respons API.');
     box.innerHTML='<div style="padding:16px;width:100%"><b>Pilih server video</b><div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status">Pilih salah satu server untuk memuat video.</p></div>';
     $('#sanka-servers').onclick=async ev=>{
@@ -275,7 +318,7 @@ async function show(id){
     const c=cfg(),box=$('#pl'),dl=$('#dl');dl.hidden=true;if(hls){hls.destroy();hls=null}
     if(!c.t){
       box.innerHTML='<div class="msg">Mencari episode di Otakudesu melalui Sanka…</div>';
-      sankaAutoEpisode([m.title.romaji,m.title.english].filter(Boolean)[0],e)
+      sankaAutoEpisode([m.title.romaji,m.title.english],e)
         .then(slug=>{if(cur===e)playSankaEpisode(slug,T(m))})
         .catch(err=>{
           if(cur!==e)return;
