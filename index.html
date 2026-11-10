@@ -585,9 +585,9 @@ const dhImg=(src,alt)=>src?`<img loading="lazy" referrerpolicy="no-referrer" src
 const dhCard=a=>{const s=dhSlug(a);return `<a class="c ota-card" href="${dhIsEp(a)?'#/dh/e/':'#/dh/d/'}${enc(s)}"><div class="im">${dhImg(a.poster,a.title)}${a.current_episode?`<span class="bd b2">${E(a.current_episode)}</span>`:''}${a.type&&a.type!=='Donghua'?`<span class="bd">${E(a.type)}</span>`:''}</div><div class="nm">${E(a.title)}</div><div class="ota-meta">${[a.status,a.sub].filter(Boolean).map(x=>`<span>${E(x)}</span>`).join('')}</div></a>`};
 const dhGrid=l=>l.length?`<div class="g">${l.map(dhCard).join('')}</div>`:'<div class="msg">Tidak ada data.</div>';
 const dhUniq=l=>[...new Map(l.filter(x=>x&&x.title).map(x=>[dhSlug(x)+(dhIsEp(x)?'#e':''),x])).values()];
-const dhLists=d=>Object.entries(d||{}).filter(([,v])=>Array.isArray(v)&&v.length&&v[0]&&typeof v[0]==='object'&&v[0].title).map(([k,v])=>[k,dhUniq(v)]);
+const dhLists=d=>Array.isArray(d)?[['data',dhUniq(d)]]:d&&Array.isArray(d.data)?[['data',dhUniq(d.data)]]:Object.entries(d||{}).filter(([,v])=>Array.isArray(v)&&v.length&&v[0]&&typeof v[0]==='object'&&v[0].title).map(([k,v])=>[k,dhUniq(v)]);
 const DHN={latest_donghua:'🆕 Donghua Terbaru',latest_release:'🆕 Rilis Terbaru',ongoing_donghua:'📺 Sedang Tayang',completed_donghua:'✅ Selesai'};
-const dhTabs=k=>`<div class="tabs">${[['','Beranda','#/dh'],['latest','Terbaru','#/dh/latest'],['ongoing','Ongoing','#/dh/ongoing'],['completed','Complete','#/dh/completed'],['schedule','Jadwal','#/dh/schedule'],['az','A–Z','#/dh/az']].map(([v,n,h])=>`<a href="${h}"${v===k?' class="on"':''}>${n}</a>`).join('')}</div>`;
+const dhTabs=k=>`<div class="tabs">${[['','Beranda','#/dh'],['latest','Terbaru','#/dh/latest'],['ongoing','Ongoing','#/dh/ongoing'],['completed','Complete','#/dh/completed'],['schedule','Jadwal','#/dh/schedule'],['az','A–Z','#/dh/az'],['genres','Genre','#/dh/genres']].map(([v,n,h])=>`<a href="${h}"${v===k?' class="on"':''}>${n}</a>`).join('')}</div>`;
 async function vDhHome(){
   app.innerHTML=SK;
   const d=await sankaFetch('/donghua/home');
@@ -640,30 +640,90 @@ async function vDhAz(letter,pg){
   const lt=`<div class="az">${DH_AZ.map(([v,n])=>`<a class="chip${v===letter?' on':''}" href="#/dh/az/${enc(v)}">${E(n)}</a>`).join('')}</div>`;
   app.innerHTML=dhTabs('az')+lt+`<div class="ota-head"><h2>Donghua: ${E((DH_AZ.find(x=>x[0]===letter)||[0,letter])[1])}</h2><span class="mu">Hal. ${pg}${pn.total_pages?' / '+E(pn.total_pages):''}</span></div>${dhGrid(l)}<div class="pg">${pg>1?`<a class="btn s" href="#/dh/az/${enc(letter)}/${pg-1}">← Sebelumnya</a>`:''}${hasNext?`<a class="btn" href="#/dh/az/${enc(letter)}/${pg+1}">Berikutnya →</a>`:''}</div>`;
 }
+async function vDhGenres(){
+  app.innerHTML=SK;
+  const d=await sankaFetch('/donghua/genres');
+  const src=Array.isArray(d)?d:(d&&Array.isArray(d.data)?d.data:walkObjects(d).filter(o=>o&&o.slug&&(o.name||o.title)));
+  const l=[...new Map(src.filter(g=>g&&g.slug&&(g.name||g.title)).map(g=>[g.slug,g])).values()].sort((a,b)=>String(a.name||a.title).localeCompare(String(b.name||b.title)));
+  app.innerHTML=dhTabs('genres')+`<h2>Genre Donghua</h2>`+(l.length?`<div class="chips">${l.map(g=>`<a class="chip" href="#/dh/g/${enc(g.slug)}">${E(g.name||g.title)}</a>`).join('')}</div>`:'<div class="msg">Genre tidak ditemukan.</div>');
+}
+async function vDhGenre(slug,pg){
+  slug=slug||'';pg=Math.max(1,+pg||1);
+  app.innerHTML=SK;
+  const d=await sankaFetch('/donghua/genres/'+enc(slug)+(pg>1?'?page='+pg:''));
+  const ls=dhLists(d);const l=ls.length?ls[0][1]:dhUniq(walkObjects(d).filter(o=>o&&o.title&&o.slug));
+  const pn=(d&&d.pagination)||{};
+  const hasNext=pn.has_next_page!=null?!!pn.has_next_page:l.length>0;
+  app.innerHTML=dhTabs('genres')+`<div class="ota-head"><h2>Genre: ${E(slug.replace(/-/g,' '))}</h2><a class="mu" href="#/dh/genres">← Semua genre</a></div>${dhGrid(l)}<div class="pg">${pg>1?`<a class="btn s" href="#/dh/g/${enc(slug)}/${pg-1}">← Sebelumnya</a>`:''}${hasNext?`<a class="btn" href="#/dh/g/${enc(slug)}/${pg+1}">Berikutnya →</a>`:''}</div>`;
+}
 async function vDhDetail(slug){
   app.innerHTML=SK;
   const raw=await sankaFetch('/donghua/detail/'+enc(slug));
   const all=walkObjects(raw);
-  const d=all.find(o=>o.title&&(o.poster||o.synopsis||o.genres))||raw||{};
-  const eps=[...new Map(all.filter(o=>o&&o.title&&((o.href&&dhIsEp(o))||(o.slug&&/episode/i.test(o.slug)))).map(o=>[dhSlug(o),o])).values()];
+  const d=(raw&&raw.title)?raw:(all.find(o=>o.title&&(o.poster||o.synopsis||o.genres))||raw||{});
+  let eps=Array.isArray(d.episodes_list)?d.episodes_list.filter(e=>e&&e.slug):[];
+  if(!eps.length)eps=[...new Map(all.filter(o=>o&&o.title&&((o.href&&dhIsEp(o))||(o.slug&&/episode/i.test(o.slug)))).map(o=>[dhSlug(o),o])).values()];
   const txt=v=>Array.isArray(v)?v.map(txt).join('<br><br>'):v&&typeof v==='object'?txt(v.paragraphs||Object.values(v)):String(v||'');
   const syn=txt(d.synopsis||d.description||'');
-  const genres=(d.genres||d.genreList||[]).map(g=>typeof g==='string'?g:(g.title||g.name||'')).filter(Boolean);
-  const skip=/^(title|poster|slug|href|anichinUrl|synopsis|description|genres|genreList|episodes|episodeList|status_code|creator)$/;
-  const info=Object.entries(d).filter(([k,v])=>!skip.test(k)&&(typeof v==='string'||typeof v==='number')&&String(v).trim()&&v!=='success'&&!/^https?:\/\//.test(v)).slice(0,10);
-  const first=eps.length?eps[eps.length-1]:null;
+  const genres=(d.genres||d.genreList||[]).map(g=>typeof g==='string'?{t:g}:{t:g.title||g.name||'',s:g.slug||g.genreId||''}).filter(g=>g.t);
+  const tags=(d.tags||[]).filter(t=>typeof t==='string'&&t.trim());
+  const IF=[['Judul alternatif',d.alter_title],['Status',d.status],['Rating',d.rating],['Studio',d.studio],['Network',d.network],['Rilis',d.released],['Durasi',d.duration],['Tipe',d.type],['Jumlah episode',d.episodes_count],['Musim',d.season],['Negara',d.country],['Subber',d.subber],['Pengarang',d.author],['Diperbarui',d.updated_on],['Pengikut',d.followers]].filter(x=>x[1]!=null&&String(x[1]).trim()&&typeof x[1]!=='object');
+  let info=IF;
+  if(!info.length){
+    const skip=/^(title|poster|slug|href|anichinUrl|synopsis|description|genres|genreList|episodes|episodeList|status_code|creator)$/;
+    info=Object.entries(d).filter(([k,v])=>!skip.test(k)&&(typeof v==='string'||typeof v==='number')&&String(v).trim()&&v!=='success'&&!/^https?:\/\//.test(v)).slice(0,10).map(([k,v])=>[k.replace(/_/g,' '),v]);
+  }
+  const first=(d.first_episode&&d.first_episode.slug&&d.first_episode)||(eps.length?eps[eps.length-1]:null);
+  const latest=(d.latest_episode&&d.latest_episode.slug&&d.latest_episode)||(eps.length?eps[0]:null);
+  const epLabel=e=>e.episode_number?'Episode '+e.episode_number:(e.episode||e.current_episode||e.title||'');
+  const recs=dhUniq(Array.isArray(d.recommendations)?d.recommendations:[]);
   app.innerHTML=`<div class="d"><div class="cv">${dhImg(d.poster,d.title||slug)}</div><div class="in"><h2 style="margin-top:0">${E(d.title||slug.replace(/-/g,' '))}</h2>
-  <div class="chips">${genres.map(g=>`<span class="chip">${E(g)}</span>`).join('')}</div>
-  <div class="dt">${info.map(([k,v])=>`<div><span>${E(k.replace(/_/g,' '))}</span><br>${E(v)}</div>`).join('')}</div>
-  ${first?`<a class="btn" href="#/dh/e/${enc(dhSlug(first))}">▶ Mulai nonton</a>`:''}<a class="btn s" target="_blank" rel="noopener" href="https://anichin.moe/${enc(slug)}/">Anichin ↗</a>${favBtn('d:'+slug)}</div></div>
-  ${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/dh/e/${enc(dhSlug(e))}"><b>${E(e.episode||e.current_episode||e.title)}</b><small>${E(e.date||e.released||'')}</small></a>`).join('')}</div>`:'<div class="msg">Daftar episode tidak ditemukan pada respons API.</div>'}`;
+  <div class="chips">${genres.map(g=>g.s?`<a class="chip" href="#/dh/g/${enc(g.s)}">${E(g.t)}</a>`:`<span class="chip">${E(g.t)}</span>`).join('')}</div>
+  <div class="dt">${info.map(([k,v])=>`<div><span>${E(k)}</span><br>${E(v)}</div>`).join('')}</div>
+  ${first?`<a class="btn" href="#/dh/e/${enc(dhSlug(first))}">▶ Mulai nonton</a>`:''}${latest&&first&&dhSlug(latest)!==dhSlug(first)?`<a class="btn s" href="#/dh/e/${enc(dhSlug(latest))}">Terbaru: ${E(/^episode/i.test(latest.episode||'')?latest.episode:(epLabel(latest)))}</a>`:''}<a class="btn s" target="_blank" rel="noopener" href="https://anichin.moe/${enc(slug)}/">Anichin ↗</a>${favBtn('d:'+slug)}
+  ${tags.length?`<div class="ota-meta" style="margin-top:10px">${tags.map(t=>`<span>#${E(t)}</span>`).join('')}</div>`:''}</div></div>
+  ${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/dh/e/${enc(dhSlug(e))}"><b>${E(epLabel(e))}</b><small>${E(e.release_date||e.date||e.released||'')}</small></a>`).join('')}</div>`:'<div class="msg">Daftar episode tidak ditemukan pada respons API.</div>'}
+  ${recs.length?`<h2>Rekomendasi</h2>${dhGrid(recs)}`:''}`;
   bindFav('d:'+slug,{t:d.title||slug,c:d.poster||'',h:'#/dh/d/'+enc(slug)});
 }
 async function vDhEp(slug){
-  const title=slug.replace(/-subtitle-indonesia$/,'').replace(/-/g,' ');
   window.dhUrl='https://anichin.moe/'+enc(slug)+'/';
-  app.innerHTML=`<div class="bar"><a class="btn s" href="#/dh">← Donghua</a><b style="flex:1">${E(title)}</b></div><div class="pl" id="pl"></div><div class="bar" style="justify-content:center"><a class="btn s" target="_blank" rel="noopener" href="${E(window.dhUrl)}">Buka di Anichin ↗</a></div>`;
-  await playSankaEpisode(slug,title,'dh');
+  const fbTitle=slug.replace(/-subtitle-indonesia$/,'').replace(/-/g,' ');
+  app.innerHTML=`<div class="bar"><a class="btn s" href="#/dh">← Donghua</a><b style="flex:1">${E(fbTitle)}</b></div><div class="pl" id="pl"><div class="msg">Memuat episode…</div></div>`;
+  let d;
+  try{d=await sankaFetch('/donghua/episode/'+enc(slug))}
+  catch(e){$('#pl').innerHTML=`<div class="msg">Tidak bisa memuat episode.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E(window.dhUrl)}">Buka di Anichin ↗</a></div>`;return}
+  const title=d.episode||fbTitle;
+  const nav=d.navigation||{};
+  const prev=nav.previous_episode&&nav.previous_episode.slug?nav.previous_episode:null;
+  const next=nav.next_episode&&nav.next_episode.slug?nav.next_episode:null;
+  const det=d.donghua_details||{};
+  const aid=(nav.all_episodes&&nav.all_episodes.slug)||det.slug||'';
+  const st=d.streaming||{};
+  let servers=(Array.isArray(st.servers)?st.servers:[]).filter(x=>x&&/^https?:\/\//i.test(x.url||''));
+  if(st.main_url&&/^https?:\/\//i.test(st.main_url.url||'')&&!servers.some(x=>x.url===st.main_url.url))servers.unshift(st.main_url);
+  if(!servers.length){const u=findVideo(d);if(u)servers=[{name:'Default',url:u}]}
+  const eps=(Array.isArray(d.episodes_list)?d.episodes_list:[]).filter(e=>e&&e.slug);
+  const eNum=e=>{const m=String(e.episode||'').match(/episode\s*0*(\d+)/i);return m?'Episode '+m[1]+(/tamat|end/i.test(e.episode)?' END':''):(e.episode||e.slug)};
+  app.innerHTML=`<div class="bar"><a class="btn s" href="#/dh/d/${enc(aid)}"${aid?'':' style="display:none"'}>← Detail</a><b style="flex:1">${E(title)}</b></div>
+  <div class="pl" id="pl"></div>
+  <div class="chips" id="dh-sv">${servers.map((x,i)=>`<button class="chip${i?'':' on'}" data-i="${i}">${E(x.name||'Server '+(i+1))}</button>`).join('')}</div>
+  <p class="mu" id="dh-st"></p>
+  <div class="bar" style="justify-content:space-between">${prev?`<a class="btn s" href="#/dh/e/${enc(prev.slug)}">← Sebelumnya</a>`:'<span></span>'}<a class="btn s" target="_blank" rel="noopener" id="dh-open" href="${E(servers[0]?servers[0].url:window.dhUrl)}">Buka player ↗</a>${next?`<a class="btn" href="#/dh/e/${enc(next.slug)}">Berikutnya →</a>`:'<span></span>'}</div>
+  ${eps.length?`<h2>Episode lain</h2><div class="eo">${eps.map(e=>`<a href="#/dh/e/${enc(e.slug)}"${e.slug===slug?' style="border-color:var(--ac)"':''}><b>${E(eNum(e))}</b></a>`).join('')}</div>`:''}`;
+  const box=$('#pl');
+  window.nextEp=()=>{if(cfg().an!==false&&next)location.hash='#/dh/e/'+enc(next.slug)};
+  const load=i=>{
+    const x=servers[i];if(!x)return;
+    document.querySelectorAll('#dh-sv .chip').forEach((c,j)=>c.classList.toggle('on',j===i));
+    if(hls){try{hls.destroy()}catch{}hls=null}
+    renderSankaSource(box,x.url);
+    $('#dh-open').href=x.url;
+    $('#dh-st').textContent='Server: '+(x.name||i+1)+' • coba server lain bila video tidak jalan.';
+  };
+  if(!servers.length){box.innerHTML=`<div class="msg">Server video tidak ditemukan pada respons API.<br><br><a class="btn s" target="_blank" rel="noopener" href="${E(window.dhUrl)}">Buka di Anichin ↗</a></div>`;return}
+  $('#dh-sv').onclick=e=>{const b=e.target.closest('[data-i]');if(b)load(+b.dataset.i)};
+  load(0);
 }
 
 /* ===== MANGA (MangaDex via /api/md) ===== */
@@ -814,6 +874,8 @@ async function route(){
           case'e':return await vDhEp(p[2]);
           case'schedule':return await vDhSchedule();
           case'az':return await vDhAz(p[2],p[3]);
+          case'genres':return await vDhGenres();
+          case'g':return await vDhGenre(p[2],p[3]);
         }
         break;
       case'o':
