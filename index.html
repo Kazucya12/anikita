@@ -119,7 +119,7 @@ const hist=()=>{try{return JSON.parse(localStorage.getItem('kw'))||{}}catch{retu
 const SY=t=>`<div class="sec"><h3 class="sh">Sinopsis</h3><div class="sy c3">${t||'<span class="mu">Sinopsis belum tersedia.</span>'}</div><button class="lk">Baca selengkapnya</button></div>`;
 document.addEventListener('click',e=>{const b=e.target.closest('.lk');if(b){const o=b.previousElementSibling.classList.toggle('c3');b.textContent=o?'Baca selengkapnya':'Tutup'}});
 const SK=`<div class="g">${'<div class="c"><div class="im sk"></div><div class="nm sk" style="height:14px;margin-top:8px"></div></div>'.repeat(12)}</div>`;
-const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#nv').style.display=mg?'none':'flex';$('#si').placeholder=mg?'Cari manga…':'Cari anime…';document.querySelectorAll('#nv a').forEach(a=>{const k=a.getAttribute('href');a.classList.toggle('on',k==='#/'?(h==='#/'||/^#\/(a|s)(\/|$)/.test(h)):h.startsWith(k))})};
+const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#nv').style.display=mg?'none':'flex';$('#si').placeholder=mg?'Cari manga…':/^#\/dhs?(\/|$)/.test(h)?'Cari donghua…':'Cari anime…';document.querySelectorAll('#nv a').forEach(a=>{const k=a.getAttribute('href');a.classList.toggle('on',k==='#/'?(h==='#/'||/^#\/(a|s)(\/|$)/.test(h)):h.startsWith(k))})};
 function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,10);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/a/${id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${x.e}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
 // Sanka proxy: API upstream dipanggil dari Vercel Function agar tidak terkena CORS.
 async function sankaFetch(path){
@@ -587,7 +587,7 @@ const dhGrid=l=>l.length?`<div class="g">${l.map(dhCard).join('')}</div>`:'<div 
 const dhUniq=l=>[...new Map(l.filter(x=>x&&x.title).map(x=>[dhSlug(x)+(dhIsEp(x)?'#e':''),x])).values()];
 const dhLists=d=>Object.entries(d||{}).filter(([,v])=>Array.isArray(v)&&v.length&&v[0]&&typeof v[0]==='object'&&v[0].title).map(([k,v])=>[k,dhUniq(v)]);
 const DHN={latest_donghua:'🆕 Donghua Terbaru',latest_release:'🆕 Rilis Terbaru',ongoing_donghua:'📺 Sedang Tayang',completed_donghua:'✅ Selesai'};
-const dhTabs=k=>`<div class="tabs">${[['','Beranda','#/dh'],['latest','Terbaru','#/dh/latest'],['ongoing','Ongoing','#/dh/ongoing'],['completed','Complete','#/dh/completed']].map(([v,n,h])=>`<a href="${h}"${v===k?' class="on"':''}>${n}</a>`).join('')}</div>`;
+const dhTabs=k=>`<div class="tabs">${[['','Beranda','#/dh'],['latest','Terbaru','#/dh/latest'],['ongoing','Ongoing','#/dh/ongoing'],['completed','Complete','#/dh/completed'],['schedule','Jadwal','#/dh/schedule'],['az','A–Z','#/dh/az']].map(([v,n,h])=>`<a href="${h}"${v===k?' class="on"':''}>${n}</a>`).join('')}</div>`;
 async function vDhHome(){
   app.innerHTML=SK;
   const d=await sankaFetch('/donghua/home');
@@ -601,6 +601,44 @@ async function vDhList(kind,pg){
   try{const d=await sankaFetch('/donghua/'+kind+(pg>1?'?page='+pg:''));const ls=dhLists(d);l=ls.length?ls[0][1]:[]}catch(e){if(kind!=='completed'||pg>1)throw e}
   if(!l.length&&kind==='completed'&&pg===1){const ls=dhLists(await sankaFetch('/donghua/home')).filter(x=>x[0]==='completed_donghua');l=ls.length?ls[0][1]:[]}
   app.innerHTML=dhTabs(kind)+`<div class="ota-head"><h2>${{ongoing:'Donghua Sedang Tayang',latest:'Donghua Terbaru',completed:'Donghua Selesai'}[kind]}</h2><span class="mu">Hal. ${pg}</span></div>${dhGrid(l)}<div class="pg">${pg>1?`<a class="btn s" href="#/dh/${kind}/${pg-1}">← Sebelumnya</a>`:''}${l.length?`<a class="btn" href="#/dh/${kind}/${pg+1}">Berikutnya →</a>`:''}</div>`;
+}
+async function vDhSearch(q){
+  app.innerHTML=SK;
+  let d=null,lastErr=null;
+  for(const p of ['/donghua/search/'+enc(q),'/donghua/search?q='+enc(q)]){
+    try{d=await sankaFetch(p);if(d)break}catch(e){lastErr=e}
+  }
+  if(!d)throw lastErr||Error('Pencarian donghua gagal.');
+  const l=dhUniq(walkObjects(d).filter(o=>o&&o.title&&o.slug&&(o.poster||o.href)));
+  app.innerHTML=dhTabs('')+`<h2>Hasil donghua: ${E(q)}</h2>`+(l.length?dhGrid(l):'<div class="msg">Tidak ada hasil.</div>');
+}
+async function vDhSchedule(){
+  app.innerHTML=SK;
+  const d=await sankaFetch('/donghua/schedule');
+  const s=((d&&d.schedule)||(Array.isArray(d)?d:[])).filter(x=>x&&Array.isArray(x.donghua_list));
+  if(!s.length)throw Error('Jadwal donghua kosong.');
+  const nk=x=>String(x||'').toLowerCase().replace(/[^a-z]/g,'');
+  const today=nk(fmt(Math.floor(Date.now()/1000),{weekday:'long'}));
+  let cur=(s.find(x=>nk(x.day)===today)||s[0]).day;
+  const draw=()=>{
+    const day=s.find(x=>x.day===cur)||s[0];
+    app.innerHTML=dhTabs('schedule')+`<h2>Jadwal Donghua <span class="mu">(WIB)</span></h2><div class="chips" id="dc">${s.map(x=>`<button class="chip${x.day===cur?' on':''}" data-d="${E(x.day)}">${E(x.day)}${nk(x.day)===today?' •':''}<small>${x.donghua_list.length}</small></button>`).join('')}</div>`+
+    (day.donghua_list.length?`<div class="eo">${dhUniq(day.donghua_list).map(a=>{const t=String(a.title||'');const vip=/^\s*\[SVIP\]/i.test(t);return `<a href="#/dh/d/${enc(dhSlug(a))}"><b>${E(t.replace(/^\s*\[SVIP\]\s*/i,''))}</b>${vip?'<small>SVIP</small>':''}</a>`}).join('')}</div>`:'<div class="msg">Tidak ada jadwal.</div>')+
+    '<p class="mu" style="text-align:center;margin-top:14px">Sumber: Anichin via Sanka API</p>';
+    $('#dc').onclick=e=>{const b=e.target.closest('[data-d]');if(b){cur=b.dataset.d;draw()}};
+  };
+  draw();
+}
+const DH_AZ=[['.','#'],['0-9','0-9'],...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(c=>[c,c])];
+async function vDhAz(letter,pg){
+  letter=letter||'A';pg=Math.max(1,+pg||1);
+  app.innerHTML=SK;
+  const d=await sankaFetch('/donghua/az-list/'+enc(letter)+'/'+pg);
+  const l=dhUniq((d&&d.donghua_list)||walkObjects(d).filter(o=>o&&o.title&&o.slug));
+  const pn=(d&&d.pagination)||{};
+  const hasNext=pn.has_next_page!=null?!!pn.has_next_page:l.length>0;
+  const lt=`<div class="az">${DH_AZ.map(([v,n])=>`<a class="chip${v===letter?' on':''}" href="#/dh/az/${enc(v)}">${E(n)}</a>`).join('')}</div>`;
+  app.innerHTML=dhTabs('az')+lt+`<div class="ota-head"><h2>Donghua: ${E((DH_AZ.find(x=>x[0]===letter)||[0,letter])[1])}</h2><span class="mu">Hal. ${pg}${pn.total_pages?' / '+E(pn.total_pages):''}</span></div>${dhGrid(l)}<div class="pg">${pg>1?`<a class="btn s" href="#/dh/az/${enc(letter)}/${pg-1}">← Sebelumnya</a>`:''}${hasNext?`<a class="btn" href="#/dh/az/${enc(letter)}/${pg+1}">Berikutnya →</a>`:''}</div>`;
 }
 async function vDhDetail(slug){
   app.innerHTML=SK;
@@ -767,12 +805,15 @@ async function route(){
       case'r':return await vReader(p[1]);
       case'fav':return vFav(p[1]);
       case'set':return vSettings();
+      case'dhs':return await vDhSearch(p.slice(1).join('/'));
       case'dh':
         switch(p[1]){
           case undefined:case'':return await vDhHome();
           case'ongoing':case'completed':case'latest':return await vDhList(p[1],p[2]);
           case'd':return await vDhDetail(p[2]);
           case'e':return await vDhEp(p[2]);
+          case'schedule':return await vDhSchedule();
+          case'az':return await vDhAz(p[2],p[3]);
         }
         break;
       case'o':
@@ -793,7 +834,8 @@ async function route(){
 $('#sf').addEventListener('submit',e=>{
   e.preventDefault();const q=$('#si').value.trim();if(!q)return;
   const mg=/^#\/(m|ms|r)(\/|$)/.test(location.hash||'#/');
-  location.hash=(mg?'#/ms/':'#/s/')+enc(q);
+  const dg=/^#\/dhs?(\/|$)/.test(location.hash||'');
+  location.hash=(mg?'#/ms/':dg?'#/dhs/':'#/s/')+enc(q);
 });
 window.addEventListener('hashchange',route);
 route();
