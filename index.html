@@ -77,6 +77,7 @@ main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 .sm{background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:0 10px;height:38px;font-size:14px}.sm option{color:#000}#sf{gap:6px}
 .hr{display:flex;align-items:center;gap:10px;width:100%}.seg{display:flex;flex:1;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:3px}.seg a{flex:1;text-align:center;padding:7px 0;border-radius:99px;color:var(--mu);font-weight:700}.seg a.on{background:linear-gradient(90deg,var(--ac),var(--ac2));color:#fff}#sf{flex:1 1 100%;max-width:none}
 .c .im img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
+.cv img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}.c .im img{position:absolute;inset:0}.tabs{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:8px 0 4px}.tabs::-webkit-scrollbar{display:none}.tabs a{flex:0 0 auto;white-space:nowrap;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:8px 16px;font-weight:600;color:var(--mu)}.tabs a.on{background:linear-gradient(90deg,var(--ac),var(--ac2));border-color:transparent;color:#fff}.pg{display:flex;gap:10px;justify-content:center;margin-top:18px}
 </style>
 </head>
 <body>
@@ -89,7 +90,7 @@ main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
 const $=s=>document.querySelector(s),app=$('#app');
 const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cfg=()=>{try{return JSON.parse(localStorage.getItem('k'))||{}}catch{return{}}};
-const F='id title{romaji english} synonyms coverImage{large}averageScore episodes status genres seasonYear description nextAiringEpisode{episode} trailer{id site} externalLinks{url site type} streamingEpisodes{title url site}';
+const F='id title{romaji english} synonyms coverImage{large}averageScore episodes status genres seasonYear description nextAiringEpisode{episode airingAt} trailer{id site} externalLinks{url site type} streamingEpisodes{title url site}';
 const gql=async(q,v)=>{
   const body=JSON.stringify({query:q,variables:v});
   const go=async url=>{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body});const raw=await r.text();let j;try{j=JSON.parse(raw)}catch{throw Error('Respons AniList bukan JSON ('+r.status+')')}if(j.errors)throw Error(j.errors[0].message);if(!r.ok)throw Error('AniList HTTP '+r.status);return j.data};
@@ -99,7 +100,7 @@ const gql=async(q,v)=>{
   }
 };
 const T=m=>m.title.english||m.title.romaji;
-const card=m=>`<a class="c" href="#/a/${m.id}"><div class="im" style="background-image:url('${E(m.coverImage.large)}')">${m.averageScore?`<span class="bd">★ ${(m.averageScore/10).toFixed(1)}</span>`:''}${m.nextAiringEpisode?`<span class="bd b2">Eps ${m.nextAiringEpisode.episode-1}</span>`:''}</div><div class="nm">${E(T(m))}</div></a>`;
+const card=m=>`<a class="c" href="#/a/${m.id}"><div class="im" style="background-image:url('${E(m.coverImage.large)}')">${m.averageScore?`<span class="bd">★ ${(m.averageScore/10).toFixed(1)}</span>`:''}${m.nextAiringEpisode?`<span class="bd b2">Eps ${m.nextAiringEpisode.episode-1}</span>`:''}</div><div class="nm">${E(T(m))}</div>${m.nextAiringEpisode&&m.nextAiringEpisode.airingAt?`<div class="ota-meta"><span>${E(shortWIB(m.nextAiringEpisode.airingAt))}</span></div>`:''}</a>`;
 const grid=l=>`<div class="g">${l.map(card).join('')}</div>`;
 let hls;
 const OFF=m=>{const L=(m.externalLinks||[]).filter(x=>x.type==='STREAMING');return L.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px">'+L.map(x=>`<a class="btn s" target="_blank" rel="noopener" href="${E(x.url)}">${E(x.site)} ↗</a>`).join('')+'</div>':'<div class="mu" style="margin-top:8px">Belum ada link resmi di AniList.</div>'};
@@ -183,6 +184,22 @@ async function sankaAutoEpisode(titles,ep){
   // detail tidak memuat daftar episode: tebak dari pola ID Samehadaku
   return best.animeId+'-episode-'+ep;
 }
+async function otaAutoEpisode(titles,ep){
+  titles=[].concat(titles||[]).filter(Boolean);let best=null,lastErr=null;
+  for(const q of sankaQueries(titles).slice(0,6)){
+    let data;try{data=await sankaFetch('/anime/search/'+encodeURIComponent(q))}catch(e){lastErr=e;continue}
+    const rs=walkObjects(data).filter(o=>o.title&&o.animeId);if(!rs.length)continue;
+    rs.forEach(o=>{o._sc=sankaScore(o.title,titles)-(/batch/i.test(o.title)?0.3:0)});rs.sort((x,y)=>y._sc-x._sc);
+    if(!best||rs[0]._sc>best._sc)best=rs[0];if(best._sc>=0.5)break;
+  }
+  if(!best||best._sc<0.25)throw Error((lastErr&&lastErr.message)||'Anime tidak ditemukan di Otakudesu.');
+  const detail=await sankaFetch('/anime/anime/'+encodeURIComponent(best.animeId));
+  const eps=walkObjects(detail).filter(o=>o.episodeId);
+  const re=new RegExp('(episode|ep)\\.?\\s*0*'+ep+'(?!\\d)','i');
+  const hit=eps.find(o=>String(o.eps)===String(ep))||eps.find(o=>re.test(String(o.title||'')));
+  if(!hit)throw Error('Episode '+ep+' belum tersedia di Otakudesu.');
+  return String(hit.episodeId);
+}
 const sankaEpisode=(slug,src='sh')=>sankaFetch(SRC[src].ep+encodeURIComponent(slug));
 const sankaServer=(id,src='sh')=>sankaFetch(SRC[src].sv+encodeURIComponent(id));
 function walkObjects(value,out=[]){
@@ -234,7 +251,7 @@ async function playSankaEpisode(slug,title,src='sh'){
           }catch(e){bar.querySelector('#sanka-status').textContent='Gagal memuat server: '+e.message;}
         };
       }
-      return;
+      return true;
     }
     if(!servers.length)throw Error('Detail episode diterima, tetapi daftar server video tidak ditemukan pada respons API.');
     box.innerHTML='<div style="padding:16px;width:100%"><b>Pilih server video</b><div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status">Pilih salah satu server untuk memuat video.</p></div>';
@@ -245,7 +262,8 @@ async function playSankaEpisode(slug,title,src='sh'){
         if(!u)throw Error('Server tidak mengembalikan URL video yang dikenali.');renderSankaSource(box,u);
       }catch(e){$('#sanka-status').textContent='Gagal memuat server: '+e.message;}
     };
-  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka di ${E(SRC[src].name)} ↗</a></div>`;}
+    return true;
+  }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka di ${E(SRC[src].name)} ↗</a></div>`;return false;}
 }
 function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
   if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
@@ -269,13 +287,22 @@ async function otakuData(){
 }
 const oLink=a=>`href="#/o/d/${encodeURIComponent(a.animeId)}"`;
 
+/* ===== waktu rilis (WIB) ===== */
+const TZ='Asia/Jakarta';
+const fmt=(ts,o)=>new Intl.DateTimeFormat('id-ID',{timeZone:TZ,...o}).format(new Date(ts*1000));
+const jam=ts=>fmt(ts,{hour:'2-digit',minute:'2-digit',hour12:false}).replace(':','.');
+const fullWIB=ts=>fmt(ts,{weekday:'long',day:'numeric',month:'short',year:'numeric'})+' • '+jam(ts)+' WIB';
+const shortWIB=ts=>fmt(ts,{weekday:'short'})+' '+jam(ts)+' WIB';
+const rel=ts=>{let d=ts-Math.floor(Date.now()/1000);const f=d<0;d=Math.abs(d);const D=Math.floor(d/86400),H=Math.floor(d%86400/3600),M=Math.floor(d%3600/60);const t=D?D+' hari '+H+' jam':H?H+' jam '+M+' menit':M+' menit';return f?t+' lalu':t+' lagi'};
+const dayKey=ts=>fmt(ts,{year:'numeric',month:'2-digit',day:'2-digit'});
+
 /* ===== util tambahan ===== */
 const clean=t=>String(t||'').replace(/<(?!br\s*\/?>)[^>]*>/gi,'').trim();
 const enc=encodeURIComponent;
 const saveCfg=o=>{try{localStorage.setItem('k',JSON.stringify({...cfg(),...o}))}catch{}};
 const saveHist=(id,x)=>{try{const h=hist();h[id]={...h[id],...x,ts:Date.now()};const k=Object.keys(h).sort((a,b)=>h[b].ts-h[a].ts).slice(0,30);const n={};k.forEach(i=>n[i]=h[i]);localStorage.setItem('kw',JSON.stringify(n))}catch{}};
 const errBox=(e,retry)=>`<div class="msg">Terjadi kesalahan.<br><small>${E(e&&e.message||e)}</small><br><br><button class="btn" onclick="${retry||'route()'}">Coba lagi</button></div>`;
-const FL='id title{romaji english} coverImage{large}averageScore nextAiringEpisode{episode}';
+const FL='id title{romaji english} coverImage{large}averageScore nextAiringEpisode{episode airingAt}';
 const section=(t,l)=>l&&l.length?`<h2>${t}</h2>${grid(l)}`:'';
 
 /* ===== ANIME (AniList) ===== */
@@ -299,32 +326,49 @@ async function vAnime(id){
   app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(m.coverImage.large)}')"></div><div class="in"><h2 style="margin-top:0">${E(T(m))}</h2>
   <div class="mu">${[m.seasonYear,m.status,m.averageScore?'★ '+(m.averageScore/10).toFixed(1):'',total?total+' eps':''].filter(Boolean).map(E).join(' • ')}</div>
   <div class="chips">${(m.genres||[]).map(g=>`<span class="chip">${E(g)}</span>`).join('')}</div>
+  ${m.nextAiringEpisode&&m.nextAiringEpisode.airingAt?`<div class="mu" style="margin:8px 0">⏰ Eps ${m.nextAiringEpisode.episode} tayang <b>${E(fullWIB(m.nextAiringEpisode.airingAt))}</b> (${E(rel(m.nextAiringEpisode.airingAt))})</div>`:''}
   ${TR(m)}${total?`<button class="btn" id="pf">▶ Tonton Eps ${h&&h.e?h.e:1}</button>`:''}</div></div>
   <div class="pl" id="pl"><div class="msg">${total?'Pilih episode untuk mulai menonton.':'Belum ada episode yang tayang.'}</div></div>
+  ${total?`<div class="chips" id="srcbar"><button class="chip on" data-src="auto">Otomatis</button><button class="chip" data-src="sh">Samehadaku</button><button class="chip" data-src="ota">Otakudesu</button><button class="chip" data-src="yt">YouTube</button></div><p class="mu" id="srcst"></p>`:''}
   ${total?`<div class="bar"><b>Episode</b>${total>40?`<input class="jp" id="jp" type="number" min="1" max="${total}" placeholder="Ke eps">`:''}</div><div class="eps" id="eps">${Array.from({length:total},(_,i)=>`<button data-e="${i+1}">${i+1}</button>`).join('')}</div>`:''}
   <div id="off">${OFF(m)}</div>${SY(clean(m.description))}`;
-  let cur=0,tok=0;
+  let cur=0,tok=0,mode='auto';
   const play=async ep=>{
     cur=ep;const my=++tok;
     document.querySelectorAll('#eps button').forEach(b=>b.classList.toggle('on',+b.dataset.e===ep));
     const bar=document.getElementById('sanka-bar');if(bar)bar.remove();
     if(hls){try{hls.destroy()}catch{}hls=null}
-    const box=$('#pl');box.innerHTML='<div class="msg">Mencari Eps '+ep+'…</div>';
+    const box=$('#pl'),st=$('#srcst');
     saveHist(id,{t:T(m),c:m.coverImage.large,e:ep});
     window.nextEp=()=>{if(cfg().an!==false&&cur<total)play(cur+1)};
     const pf=$('#pf');if(pf)pf.textContent='▶ Tonton Eps '+ep;
-    let slug;
-    try{slug=await sankaAutoEpisode(titles,ep)}catch(e){
+    const chain=mode==='auto'?['sh','ota','yt']:[mode];
+    const names={sh:'Samehadaku',ota:'Otakudesu',yt:'YouTube'};const fails=[];
+    for(const src of chain){
       if(my!==tok)return;
+      box.innerHTML='<div class="msg">Mencari Eps '+ep+' di '+names[src]+'…</div>';
+      if(st)st.textContent=fails.length?fails.join(' • '):'';
       try{
-        const r=await fetch('/api/yt?ep='+ep+'&t='+enc(titles.slice(0,2).join('|')));const j=await r.json();
-        if(j&&j.id){box.innerHTML=`<iframe src="https://www.youtube.com/embed/${E(j.id)}?autoplay=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;return}
-      }catch{}
-      box.innerHTML=`<div class="msg">Streaming belum ditemukan.<br><small>${E(e.message)}</small></div>`;return;
+        if(src==='yt'){
+          const r=await fetch('/api/yt?ep='+ep+'&t='+enc(titles.slice(0,2).join('|')));const j=await r.json();
+          if(!j||!j.id)throw Error(j&&j.error==='no key'?'API key YouTube belum diisi':'tidak ada episode resmi');
+          if(my!==tok)return;
+          box.innerHTML=`<iframe src="https://www.youtube.com/embed/${E(j.id)}?autoplay=1" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+          if(st)st.textContent='Sumber: YouTube resmi'+(fails.length?' • '+fails.join(' • '):'');return;
+        }
+        const slug=src==='sh'?await sankaAutoEpisode(titles,ep):await otaAutoEpisode(titles,ep);
+        if(my!==tok)return;
+        const okk=await playSankaEpisode(slug,T(m),src);
+        if(my!==tok)return;
+        if(okk){if(st)st.textContent='Sumber: '+names[src]+(fails.length?' • '+fails.join(' • '):'');return}
+        fails.push(names[src]+': gagal memutar');
+      }catch(e){fails.push(names[src]+': '+(e.message||'gagal').slice(0,80))}
     }
     if(my!==tok)return;
-    await playSankaEpisode(slug,T(m),'sh');
+    box.innerHTML='<div class="msg">Streaming belum ditemukan untuk Eps '+ep+'.<br><small>'+E(fails.join(' • '))+'</small><br><br>Coba pilih sumber lain di bawah, atau buka link resmi.</div>';
+    if(st)st.textContent='';
   };
+  const sb=$('#srcbar');if(sb)sb.onclick=e=>{const b=e.target.closest('[data-src]');if(!b)return;mode=b.dataset.src;sb.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));if(cur)play(cur)};
   const eps=$('#eps');if(eps)eps.onclick=e=>{const b=e.target.closest('button[data-e]');if(b)play(+b.dataset.e)};
   const pf=$('#pf');if(pf)pf.onclick=()=>play(h&&h.e?h.e:1);
   const jp=$('#jp');if(jp)jp.onkeydown=e=>{if(e.key==='Enter'){const n=Math.min(total,Math.max(1,+jp.value||1));play(n);const b=eps.querySelector(`[data-e="${n}"]`);if(b)b.scrollIntoView({block:'center'})}};
@@ -334,10 +378,16 @@ async function vAnime(id){
 /* ===== OTAKUDESU ===== */
 const otaCard=a=>`<a class="c ota-card" ${oLink(a)}><div class="im" style="background-image:url('${E(a.poster)}')">${a.score&&+a.score?`<span class="bd">★ ${E(a.score)}</span>`:''}${a.episodes?`<span class="bd b2">Eps ${E(a.episodes)}</span>`:''}</div><div class="nm">${E(a.title)}</div><div class="ota-meta">${[a.releaseDay,a.latestReleaseDate||a.lastReleaseDate,a.status].filter(Boolean).map(x=>`<span>${E(x)}</span>`).join('')}</div></a>`;
 const otaGrid=l=>l.length?`<div class="g">${l.map(otaCard).join('')}</div>`:'<div class="msg">Tidak ada data.</div>';
-async function vOtaList(kind){
-  app.innerHTML=SK;const o=await otakuData();
+async function vOtaList(kind,pg){
+  app.innerHTML=SK;pg=Math.max(1,+pg||1);
   const names={ongoing:'Sedang Tayang (Ongoing)',completed:'Selesai (Complete)'};
-  app.innerHTML=`<div class="ota-head"><h2>${names[kind]}</h2><span class="mu">Otakudesu</span></div>`+otaGrid((o[kind]&&o[kind].animeList)||[]);
+  let l=[],live=false;
+  try{
+    const d=await sankaFetch('/anime/'+(kind==='ongoing'?'ongoing-anime':'complete-anime')+(pg>1?'?page='+pg:''));
+    l=[...new Map(walkObjects(d).filter(x=>x.title&&x.animeId&&x.poster).map(x=>[x.animeId,x])).values()];live=l.length>0;
+  }catch{}
+  if(!live&&pg===1){const o=await otakuData();l=(o[kind]&&o[kind].animeList)||[]}
+  app.innerHTML=`<div class="ota-head"><h2>${names[kind]}</h2><span class="mu">Otakudesu • ${live?'live, hal. '+pg:'data tersimpan'}</span></div>`+otaGrid(l)+`<div class="pg">${pg>1?`<a class="btn s" href="#/o/${kind}/${pg-1}">← Sebelumnya</a>`:''}${l.length&&(live||pg>1)?`<a class="btn" href="#/o/${kind}/${pg+1}">Berikutnya →</a>`:''}</div>`;
 }
 async function vOtaAll(){
   app.innerHTML=SK;const o=await otakuData();
@@ -362,7 +412,31 @@ async function vOtaGenre(id,page){
   const l=[...new Map(walkObjects(d).filter(x=>x.title&&x.animeId&&x.poster).map(x=>[x.animeId,x])).values()];
   app.innerHTML=`<div class="ota-head"><h2>Genre: ${E(id)}</h2><a class="mu" href="#/o/genres">← Semua genre</a></div>`+otaGrid(l)+`<div class="bar" style="justify-content:center;margin-top:16px">${page>1?`<a class="btn s" href="#/o/g/${enc(id)}/${page-1}">← Sebelumnya</a>`:''}${l.length?`<a class="btn" href="#/o/g/${enc(id)}/${page+1}">Berikutnya →</a>`:''}</div>`;
 }
+async function vJadwal(){
+  app.innerHTML=SK;
+  const now=Math.floor(Date.now()/1000);
+  const wib0=Math.floor((now+25200)/86400)*86400-25200;
+  const days=Array.from({length:7},(_,i)=>wib0+i*86400);
+  let cur=0;const cache={};
+  const load=async i=>{
+    if(cache[i])return cache[i];
+    const q=pg=>gql(`query($a:Int,$b:Int,$p:Int){Page(page:$p,perPage:50){airingSchedules(airingAt_greater:$a,airingAt_lesser:$b,sort:TIME){airingAt episode media{id title{romaji english}coverImage{large}isAdult countryOfOrigin}}}}`,{a:days[i]-1,b:days[i]+86400,p:pg});
+    const pgs=await Promise.all([1,2,3].map(q));
+    const l=[].concat(...pgs.map(x=>x.Page.airingSchedules)).filter(x=>x.media&&!x.media.isAdult&&x.media.countryOfOrigin==='JP');
+    return cache[i]=[...new Map(l.map(x=>[x.media.id+'-'+x.episode,x])).values()];
+  };
+  const draw=async()=>{
+    app.innerHTML=`<h2>Jadwal Rilis <span class="mu">(WIB)</span></h2><div class="tabs" id="dc">${days.map((d,i)=>`<a href="javascript:void 0" data-i="${i}"${i===cur?' class="on"':''}>${i===0?'Hari ini':fmt(d,{weekday:'short',day:'numeric'})}</a>`).join('')}</div><div id="jl">${SK}</div>`;
+    $('#dc').onclick=e=>{const b=e.target.closest('[data-i]');if(b){cur=+b.dataset.i;draw()}};
+    try{
+      const l=await load(cur);
+      $('#jl').innerHTML=l.length?`<div class="eo">${l.map(x=>`<a href="#/a/${x.media.id}"><b>${E(jam(x.airingAt))} WIB • ${E(T(x.media))}</b><small>Episode ${x.episode}${x.airingAt<now?' • sudah tayang':''}</small></a>`).join('')}</div>`:'<div class="msg">Tidak ada jadwal.</div>';
+    }catch(e){$('#jl').innerHTML=errBox(e,'route()')}
+  };
+  draw();
+}
 async function vOtaSchedule(){
+  try{return await vJadwal()}catch(e){console.warn('jadwal AniList gagal',e)}
   app.innerHTML=SK;
   const r=await fetch('/data/otakudesu-schedule.json');if(!r.ok)throw Error('Jadwal tidak bisa dimuat ('+r.status+')');
   const s=await r.json();
@@ -419,13 +493,25 @@ async function mdFetch(path){
 const mLang=()=>cfg().ml||'id';
 const mT=m=>{const t=m.attributes.title||{};return t.en||t[Object.keys(t)[0]]||'Tanpa judul'};
 const mCover=(m,s=256)=>{const c=(m.relationships||[]).find(r=>r.type==='cover_art');return c&&c.attributes&&c.attributes.fileName?`https://uploads.mangadex.org/covers/${m.id}/${c.attributes.fileName}.${s}.jpg`:''};
-const mCard=m=>`<a class="c" href="#/m/${E(m.id)}"><div class="im" style="background-image:url('${E(mCover(m))}')">${m.attributes.year?`<span class="bd">${E(m.attributes.year)}</span>`:''}</div><div class="nm">${E(mT(m))}</div></a>`;
+function imgFb(el){if(el.dataset.fb)return;el.dataset.fb=1;el.src='/api/img?u='+encodeURIComponent(el.src)}
+const mImg=(src,alt,cls='')=>src?`<img ${cls?`class="${cls}" `:''}loading="lazy" referrerpolicy="no-referrer" src="${E(src)}" alt="${E(alt)}" onerror="imgFb(this)">`:'';
+const mCard=m=>`<a class="c" href="#/m/${E(m.id)}"><div class="im">${mImg(mCover(m),mT(m))}${m.attributes.year?`<span class="bd">${E(m.attributes.year)}</span>`:''}${m.attributes.status==='completed'?'<span class="bd b2">Tamat</span>':''}</div><div class="nm">${E(mT(m))}</div></a>`;
 const mGrid=l=>l.length?`<div class="g">${l.map(mCard).join('')}</div>`:'<div class="msg">Tidak ada manga ditemukan untuk bahasa ini. Ganti bahasa di Pengaturan (⚙).</div>';
+const MK={pop:{t:'Populer',h:'📖 Manga Populer',q:'&order[followedCount]=desc'},ongoing:{t:'Ongoing',h:'🟢 Manga Ongoing',q:'&status[]=ongoing&order[latestUploadedChapter]=desc'},done:{t:'Tamat',h:'✅ Manga Tamat',q:'&status[]=completed&order[followedCount]=desc'},new:{t:'Update Terbaru',h:'🆕 Baru Diperbarui',q:'&order[latestUploadedChapter]=desc'}};
+const mTabs=k=>`<div class="tabs">${Object.entries(MK).map(([id,x])=>`<a href="#/m/t/${id}"${id===k?' class="on"':''}>${x.t}</a>`).join('')}</div>`;
+const mQ=(k,pg)=>`/manga?limit=24&offset=${(pg-1)*24}&includes[]=cover_art&availableTranslatedLanguage[]=${mLang()}&hasAvailableChapters=true${MR}${MK[k].q}`;
 async function vMangaHome(){
   app.innerHTML=SK;const L=mLang();
-  const base=`limit=24&includes[]=cover_art&availableTranslatedLanguage[]=${L}&hasAvailableChapters=true${MR}`;
-  const [a,b]=await Promise.all([mdFetch('/manga?'+base+'&order[followedCount]=desc'),mdFetch('/manga?'+base+'&order[latestUploadedChapter]=desc')]);
-  app.innerHTML=`<h2>📖 Manga Populer <span class="mu">(${L==='id'?'Bahasa Indonesia':'English'})</span></h2>${mGrid(a.data)}<h2>🆕 Baru Diperbarui</h2>${mGrid(b.data)}`;
+  const [a,b]=await Promise.all([mdFetch(mQ('ongoing',1)),mdFetch(mQ('done',1))]);
+  const more=k=>`<div class="pg"><a class="btn s" href="#/m/t/${k}">Lihat semua →</a></div>`;
+  app.innerHTML=mTabs('')+`<div class="mu">Bahasa: ${L==='id'?'Indonesia':'English'} • data langsung dari MangaDex, selalu terbaru</div><h2>${MK.ongoing.h}</h2>${mGrid(a.data)}${more('ongoing')}<h2>${MK.done.h}</h2>${mGrid(b.data)}${more('done')}`;
+}
+async function vMangaList(k,pg){
+  if(!MK[k])k='pop';pg=Math.max(1,+pg||1);
+  app.innerHTML=SK;
+  const j=await mdFetch(mQ(k,pg));
+  const tot=Math.ceil((j.total||0)/24);
+  app.innerHTML=mTabs(k)+`<div class="ota-head"><h2>${MK[k].h}</h2><span class="mu">Hal. ${pg}${tot?' / '+tot:''} • ${mLang()==='id'?'Indonesia':'English'}</span></div>${mGrid(j.data)}<div class="pg">${pg>1?`<a class="btn s" href="#/m/t/${k}/${pg-1}">← Sebelumnya</a>`:''}${j.data.length===24?`<a class="btn" href="#/m/t/${k}/${pg+1}">Berikutnya →</a>`:''}</div>`;
 }
 async function vMangaSearch(q){
   app.innerHTML=SK;
@@ -441,9 +527,11 @@ async function getChapters(mid,lang){
     all=all.concat(j.data);total=j.total||0;off+=500;if(!j.data.length)break;
   }
   const seen=new Set(),out=[];
-  all.forEach(c=>{const a=c.attributes;if(a.externalUrl||a.pages===0)return;const k=a.chapter==null?c.id:a.chapter;if(seen.has(k))return;seen.add(k);out.push({id:c.id,num:a.chapter,title:a.title,vol:a.volume})});
+  all.forEach(c=>{const a=c.attributes;if(a.externalUrl||a.pages===0)return;const k=a.chapter==null?c.id:a.chapter;if(seen.has(k))return;seen.add(k);out.push({id:c.id,num:a.chapter,title:a.title,vol:a.volume,at:Math.floor(new Date(a.publishAt||a.readableAt||a.createdAt).getTime()/1000)||0})});
   return chCache[key]=out;
 }
+const chTime=c=>c.at?`<small style="display:block;opacity:.7">${E(fmt(c.at,{day:'numeric',month:'short',year:'numeric'}))} • ${E(jam(c.at))} WIB</small>`:'';
+const mEst=l=>{const r=l.filter(c=>c.at).slice(-10);if(r.length<4)return '';const cnt={};r.forEach(c=>{const k=fmt(c.at,{weekday:'long'});cnt[k]=(cnt[k]||0)+1});const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];if(top[1]<3)return '';const hs=r.filter(c=>fmt(c.at,{weekday:'long'})===top[0]).map(c=>+fmt(c.at,{hour:'2-digit',hour12:false}));const h=Math.round(hs.reduce((a,b)=>a+b,0)/hs.length);return `Perkiraan jadwal: biasanya update hari <b>${E(top[0])}</b> sekitar jam <b>${String(h).padStart(2,'0')}.00 WIB</b> (estimasi dari chapter terakhir)`};
 const chLabel=c=>(c.num!=null?'Ch. '+c.num:'Oneshot')+(c.title?' – '+c.title:'');
 async function vManga(id){
   app.innerHTML=SK;const L=mLang();
@@ -453,12 +541,13 @@ async function vManga(id){
   const tags=(a.tags||[]).map(t=>t.attributes.name.en).filter(Boolean);
   const au=(m.relationships||[]).filter(r=>r.type==='author').map(r=>r.attributes&&r.attributes.name).filter(Boolean).join(', ');
   const rev=chs.slice().reverse();
-  app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(mCover(m,512))}')"></div><div class="in"><h2 style="margin-top:0">${E(mT(m))}</h2>
+  app.innerHTML=`<div class="d"><div class="cv">${mImg(mCover(m,512),mT(m))}</div><div class="in"><h2 style="margin-top:0">${E(mT(m))}</h2>
   <div class="mu">${[au,a.year,a.status,chs.length?chs.length+' chapter':''].filter(Boolean).map(E).join(' • ')}</div>
+  ${chs.length?`<div class="mu" style="margin:6px 0">🕒 Chapter terakhir rilis: <b>${E(fullWIB(chs[chs.length-1].at))}</b>${mEst(chs)?'<br>'+mEst(chs):''}</div>`:''}
   <div class="chips">${tags.slice(0,8).map(t=>`<span class="chip">${E(t)}</span>`).join('')}</div>
   ${chs.length?`<a class="btn" href="#/r/${E(chs[0].id)}">▶ Baca ${E(chLabel(chs[0]).split(' – ')[0])}</a> <a class="btn s" href="#/r/${E(chs[chs.length-1].id)}">Terbaru</a>`:''}
   <div class="bar" style="margin-top:10px"><span class="mu">Bahasa:</span><button class="chip${L==='id'?' on':''}" data-l="id">Indonesia</button><button class="chip${L==='en'?' on':''}" data-l="en">English</button></div></div></div>
-  ${SY(desc)}<h2>Chapter</h2>${chs.length?`<div class="cl">${rev.map(c=>`<a href="#/r/${E(c.id)}">${E(chLabel(c))}</a>`).join('')}</div>`:`<div class="msg">Belum ada chapter dalam bahasa ${L==='id'?'Indonesia':'English'}.</div>`}`;
+  ${SY(desc)}<h2>Chapter</h2>${chs.length?`<div class="cl">${rev.map(c=>`<a href="#/r/${E(c.id)}">${E(chLabel(c))}${chTime(c)}</a>`).join('')}</div>`:`<div class="msg">Belum ada chapter dalam bahasa ${L==='id'?'Indonesia':'English'}.</div>`}`;
   document.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{saveCfg({ml:b.dataset.l});route()});
 }
 async function vReader(id){
@@ -472,7 +561,7 @@ async function vReader(id){
   if(mid){try{list=await getChapters(mid,lang)}catch{}}
   const i=list.findIndex(c=>c.id===id),prev=i>0?list[i-1]:null,next=i>=0&&i<list.length-1?list[i+1]:null;
   const nav=`<div class="bar" style="justify-content:space-between;max-width:820px;margin:10px auto">${prev?`<a class="btn s" href="#/r/${E(prev.id)}">← Sebelumnya</a>`:'<span></span>'}${mid?`<a class="btn s" href="#/m/${E(mid)}">☰ Chapter</a>`:''}${next?`<a class="btn" href="#/r/${E(next.id)}">Berikutnya →</a>`:'<span></span>'}</div>`;
-  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${nav}<div class="rd">${files.map(f=>`<img loading="lazy" src="${E(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f)}" alt="Halaman">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
+  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${nav}<div class="rd">${files.map(f=>`<img loading="lazy" referrerpolicy="no-referrer" src="${E(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f)}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
   const kd=e=>{if(e.key==='ArrowRight'&&next)location.hash='#/r/'+next.id;if(e.key==='ArrowLeft'&&prev)location.hash='#/r/'+prev.id};
   window.addEventListener('keydown',kd);window._kd=kd;
 }
@@ -505,14 +594,14 @@ async function route(){
       case'':return await vHome();
       case'a':return await vAnime(p[1]);
       case's':return await vSearch(p.slice(1).join('/'));
-      case'm':return p[1]?await vManga(p[1]):await vMangaHome();
+      case'm':return p[1]==='t'?await vMangaList(p[2],p[3]):p[1]?await vManga(p[1]):await vMangaHome();
       case'ms':return await vMangaSearch(p.slice(1).join('/'));
       case'r':return await vReader(p[1]);
       case'set':return vSettings();
       case'o':
         switch(p[1]){
-          case'ongoing':return await vOtaList('ongoing');
-          case'completed':return await vOtaList('completed');
+          case'ongoing':return await vOtaList('ongoing',p[2]);
+          case'completed':return await vOtaList('completed',p[2]);
           case'list':return await vOtaAll();
           case'genres':return await vOtaGenres();
           case'g':return await vOtaGenre(p[2],p[3]);
