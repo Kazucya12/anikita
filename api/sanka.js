@@ -1,6 +1,6 @@
 // Proxy server-side untuk Sanka Vollerei (https://www.sankavollerei.web.id/anime/).
 // Browser memanggil /api/sanka?p=/samehadaku/anime/ao-ashi-s2, lalu Vercel meneruskannya.
-// Namespace: /anime/... (Otakudesu) dan /samehadaku/... (Samehadaku).
+// Namespace: /anime/... (Otakudesu), /samehadaku/... (Samehadaku), dan /donghua/... (Anichin).
 // Jika Sanka butuh API key, isi Environment Variable SANKA_APIKEY di Vercel.
 const HOST = 'https://www.sankavollerei.web.id';
 const UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36';
@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
   let p = String(req.query.p || '');
   // Kompatibel dengan path lama: /anime/otakudesu/... -> /anime/...
   p = p.replace(/^\/anime\/otakudesu\//, '/anime/');
-  const okPrefix = p.startsWith('/anime/') || p.startsWith('/samehadaku/');
+  const okPrefix = p.startsWith('/anime/') || p.startsWith('/samehadaku/') || p.startsWith('/donghua/');
   if (!okPrefix || p.includes('..') || /^\/\/|https?:/i.test(p)) {
     res.status(400).json({ error: 'bad_path', message: 'Path Sanka tidak diizinkan.' });
     return;
