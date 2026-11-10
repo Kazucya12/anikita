@@ -6,7 +6,7 @@
 <title>Kumori Lite</title>
 <meta name="theme-color" content="#0e0f1a">
 <style>
-:root{--bg:#0e0f1a;--b2:#171928;--b3:#20233a;--tx:#eceefb;--mu:#8c91b3;--ac:#ff6b9d;--ac2:#7c5cff}
+:root{--bg:#0e0f1a;--b2:#171928;--b3:#20233a;--tx:#eceefb;--mu:#a7acd0;--ac:#ff6b9d;--ac2:#7c5cff}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,sans-serif}
 a{color:inherit;text-decoration:none}
@@ -50,11 +50,36 @@ main>*{animation:fin .35s ease both}
 .eo{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}.eo a{background:var(--b2);border:1px solid var(--b3);border-radius:10px;padding:10px 12px;font-size:13px;transition:.2s;display:flex;flex-direction:column;gap:2px}.eo a:hover{border-color:var(--ac);transform:translateY(-2px)}.eo b{font-size:14px}.eo small{color:var(--mu)}
 .hs{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}.hs .c{flex:0 0 130px}
 @media(max-width:560px){header{gap:8px}.d .cv{width:120px}.eo{grid-template-columns:1fr 1fr}}
+
+header{padding-top:max(10px,env(safe-area-inset-top))}
+#sf{margin-left:0;max-width:none}
+.ib{background:var(--b2);border:1px solid var(--b3);border-radius:99px;width:38px;height:38px;display:flex;align-items:center;justify-content:center}
+#nv{order:3;width:100%;display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#nv::-webkit-scrollbar{display:none}
+#nv a{flex:0 0 auto;white-space:nowrap;padding:8px 13px;border-radius:99px;color:var(--mu);font-size:14px;min-height:38px;display:flex;align-items:center}
+#nv a.on{background:var(--b3);color:var(--tx);font-weight:700}
+.sp{flex:0 0 1px;height:20px;background:#3a3e63;margin:0 6px}
+.sec{border-top:1px solid var(--b3);margin-top:22px;padding-top:6px}
+.sh{font-size:16px;margin:12px 0 6px}
+.sy{max-height:none;overflow:visible}.sy.c3{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.lk{background:none;border:0;color:var(--ac);font-weight:700;padding:6px 0;cursor:pointer}
+main>h2~h2{border-top:1px solid var(--b3);padding-top:18px}
+.sk{background:linear-gradient(90deg,var(--b2),var(--b3),var(--b2));background-size:200% 100%;animation:shm 1.2s infinite;border-radius:12px}
+@keyframes shm{to{background-position:-200% 0}}
+.c{content-visibility:auto;contain-intrinsic-size:auto 230px}
+.im{position:relative}
+.bd{position:absolute;left:6px;top:6px;background:rgba(14,15,26,.88);border-radius:8px;padding:2px 7px;font-size:11px;font-weight:700}
+.bd.b2{top:auto;bottom:6px;background:linear-gradient(90deg,var(--ac),var(--ac2))}
+.d .cv{width:190px}.in .btn{margin:4px 6px 0 0}
+.jp{width:78px;background:var(--b2);border:1px solid var(--b3);border-radius:99px;padding:8px 10px}
+.eps button{min-height:40px}.chip{min-height:36px}
+#sanka-servers{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}#sanka-servers .chip{white-space:nowrap;flex:0 0 auto}
+@media(max-width:560px){.d .cv{width:130px}}
 </style>
 </head>
 <body>
-<header><a class="logo" href="#/">KUMORI</a><a class="mu" href="#/">Anime</a><a class="mu" href="#/m">Manga</a><a class="mu" href="#/o/ongoing">Ongoing</a><a class="mu" href="#/o/completed">Complete</a><a class="mu" href="#/o/list">Daftar Anime</a><a class="mu" href="#/o/genres">Genre</a><a class="mu" href="#/o/schedule">Jadwal</a><a class="mu" href="#/set">⚙</a>
-<form id="sf"><input id="si" placeholder="Cari anime…"></form></header>
+<header><a class="logo" href="#/">KUMORI</a><form id="sf"><input id="si" placeholder="Cari anime…"></form><a class="ib" href="#/set" aria-label="Pengaturan">⚙</a>
+<nav id="nv"><a href="#/">Anime</a><a href="#/m">Manga</a><i class="sp"></i><a href="#/o/ongoing">Ongoing</a><a href="#/o/completed">Complete</a><a href="#/o/list">Daftar Anime</a><i class="sp"></i><a href="#/o/genres">Genre</a><a href="#/o/schedule">Jadwal</a></nav></header>
 <main id="app"></main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
 <script>
@@ -64,13 +89,19 @@ const cfg=()=>{try{return JSON.parse(localStorage.getItem('k'))||{}}catch{return
 const F='id title{romaji english} synonyms coverImage{large}averageScore episodes status genres seasonYear description nextAiringEpisode{episode} trailer{id site} externalLinks{url site type} streamingEpisodes{title url site}';
 const gql=async(q,v)=>{const r=await fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,variables:v})});const j=await r.json();if(j.errors)throw Error(j.errors[0].message);return j.data};
 const T=m=>m.title.english||m.title.romaji;
-const card=m=>`<a class="c" href="#/a/${m.id}"><div class="im" style="background-image:url('${E(m.coverImage.large)}')"></div><div class="nm">${E(T(m))}</div></a>`;
+const card=m=>`<a class="c" href="#/a/${m.id}"><div class="im" style="background-image:url('${E(m.coverImage.large)}')">${m.averageScore?`<span class="bd">★ ${(m.averageScore/10).toFixed(1)}</span>`:''}${m.nextAiringEpisode?`<span class="bd b2">Eps ${m.nextAiringEpisode.episode-1}</span>`:''}</div><div class="nm">${E(T(m))}</div></a>`;
 const grid=l=>`<div class="g">${l.map(card).join('')}</div>`;
 let hls;
 const OFF=m=>{const L=(m.externalLinks||[]).filter(x=>x.type==='STREAMING');return L.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px">'+L.map(x=>`<a class="btn s" target="_blank" rel="noopener" href="${E(x.url)}">${E(x.site)} ↗</a>`).join('')+'</div>':'<div class="mu" style="margin-top:8px">Belum ada link resmi di AniList.</div>'};
 const TR=m=>m.trailer&&m.trailer.site==='youtube'?`<button class="btn" id="tr">▶ Trailer</button> `:'';
 
  
+const hist=()=>{try{return JSON.parse(localStorage.getItem('kw'))||{}}catch{return{}}};
+const SY=t=>`<div class="sec"><h3 class="sh">Sinopsis</h3><div class="sy c3">${t||'<span class="mu">Sinopsis belum tersedia.</span>'}</div><button class="lk">Baca selengkapnya</button></div>`;
+document.addEventListener('click',e=>{const b=e.target.closest('.lk');if(b){const o=b.previousElementSibling.classList.toggle('c3');b.textContent=o?'Baca selengkapnya':'Tutup'}});
+const SK=`<div class="g">${'<div class="c"><div class="im sk"></div><div class="nm sk" style="height:14px;margin-top:8px"></div></div>'.repeat(12)}</div>`;
+const setNav=()=>{const h=location.hash||'#/';document.querySelectorAll('#nv a').forEach(a=>{const k=a.getAttribute('href');a.classList.toggle('on',k==='#/'?(h==='#/'||/^#\/(a|s)(\/|$)/.test(h)):h.startsWith(k))})};
+function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,10);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/a/${id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${x.e}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
 // Sanka proxy: API upstream dipanggil dari Vercel Function agar tidak terkena CORS.
 async function sankaFetch(path){
   const r=await fetch('/api/sanka?p='+encodeURIComponent(path));
@@ -206,7 +237,7 @@ async function playSankaEpisode(slug,title,src='sh'){
     };
   }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat streaming Sanka.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E(SRC[src].site)}">Buka sumber ${E(SRC[src].name)}</a></div>`;}
 }
-function renderSankaSource(box,url){
+function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
   if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
     box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');hls=new Hls();hls.loadSource(url);hls.attachMedia(v);
   }else if(/\.(mp4|webm|ogg)(\?|$)/i.test(url)){
@@ -280,9 +311,8 @@ async function otakuDetail(id){
     <h2 style="margin-top:0">${E(m.title)}</h2>
     <div class="chips">${(m.genreList||[]).map(g=>`<a class="chip" href="#/o/genre/${E(g.genreId)}">${E(g.title)}</a>`).join('')}</div>
     <div class="dt">${rows.map(r=>`<div><span>${r[0]}</span><br>${E(r[1])}</div>`).join('')}</div>
-    ${syn?`<div class="sy">${syn}</div>`:'<div class="mu">Sinopsis belum tersedia di data.</div>'}
-    <div style="margin-top:12px"><a class="btn s" href="#/o/list">‹ Kembali</a></div></div></div>
-    <h2>Daftar Episode <span class="mu">(${(m.episodeList||[]).length})</span></h2>
+        <div style="margin-top:12px"><a class="btn s" href="#/o/list">‹ Kembali</a></div></div></div>
+    ${SY(syn)}<h2 class="sec">Daftar Episode <span class="mu">(${(m.episodeList||[]).length})</span></h2>
     <div class="eo">${(m.episodeList||[]).map(e=>`<a href="#/o/watch/${encodeURIComponent(e.episodeId||e.slug||String(e.otakudesuUrl||'').split('/').filter(Boolean).pop()||'')}"><b>Episode ${E(e.eps)}</b><small>${E(e.date)} · putar melalui Sanka</small></a>`).join('')}</div>
     ${(m.recommendedAnimeList||[]).length?`<h2>Rekomendasi</h2><div class="hs">${m.recommendedAnimeList.map(a=>`<a class="c ota-card" ${oLink(a)}><div class="im" style="background-image:url('${E(a.poster)}')"></div><div class="nm">${E(a.title)}</div></a>`).join('')}</div>`:''}`;
 }
@@ -311,7 +341,7 @@ async function otakuWatch(slug){
 async function home(){
   const b='type:ANIME,isAdult:false';
   const d=await gql(`{a:Page(perPage:18){media(sort:TRENDING_DESC,${b}){${F}}}r:Page(perPage:18){media(sort:POPULARITY_DESC,status:RELEASING,${b}){${F}}}}`);
-  app.innerHTML=`<h2>🔥 Lagi Tren</h2>${grid(d.a.media)}<h2>📺 Sedang Tayang</h2>${grid(d.r.media)}`;
+  app.innerHTML=contWatch()+`<h2>🔥 Lagi Tren</h2>${grid(d.a.media)}<h2>📺 Sedang Tayang</h2>${grid(d.r.media)}`;
 }
 async function find(q){
   const d=await gql(`query($q:String){Page(perPage:36){media(search:$q,type:ANIME,isAdult:false){${F}}}}`,{q});
@@ -319,16 +349,21 @@ async function find(q){
 }
 async function show(id){
   const m=(await gql(`query($i:Int){Media(id:$i,type:ANIME){${F}}}`,{i:+id})).Media;
-  const n=m.episodes||(m.nextAiringEpisode?m.nextAiringEpisode.episode-1:12)||12;
+  const n=m.episodes||(m.nextAiringEpisode?m.nextAiringEpisode.episode-1:12)||12;const w=hist()[m.id];
   app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(m.coverImage.large)}')"></div><div class="in"><h1 style="font-size:24px">${E(T(m))}</h1>
   <div class="mu">${m.seasonYear||''} · ${E(m.status)} · ${E(m.genres.join(', '))}${m.averageScore?' · ★ '+(m.averageScore/10).toFixed(1):''}</div>
-  <div class="sy">${E((m.description||'').replace(/<[^>]+>/g,''))}</div>${TR(m)}</div></div>
-  <div class="pl" id="pl"><div class="msg">Pilih episode atau tekan Trailer.</div></div>
-  <div class="bar"><b id="ep">Episode —</b><span style="flex:1"></span><button class="btn s" id="pv">‹</button><button class="btn s" id="nx">›</button><a class="btn s" id="dl" hidden target="_blank" rel="noopener" download>⬇</a></div>
-  <div class="eps" id="eps">${Array.from({length:n},(_,i)=>`<button data-e="${i+1}">${i+1}</button>`).join('')}</div>`;
-  let cur=0;
+  ${TR(m)}${w?`<button class="btn" id="rs">▶ Lanjut Eps ${w.e}</button>`:''}</div></div>${SY(E((m.description||'').replace(/<[^>]+>/g,'')))}
+  <div class="sec"><h3 class="sh">▶ Tonton</h3></div><div class="pl" id="pl"><div class="msg">Pilih episode atau tekan Trailer.</div></div>
+  <div class="bar"><b id="ep">Episode —</b><span style="flex:1"></span><input id="jp" class="jp" type="number" inputmode="numeric" min="1" max="${n}" placeholder="Ke eps"><button class="btn s" id="pv">‹</button><button class="btn s" id="nx">›</button><a class="btn s" id="dl" hidden target="_blank" rel="noopener" download>⬇</a></div>
+  <h3 class="sh sec">Pilih Episode</h3><div class="chips" id="rg"></div><div class="eps" id="eps"></div>`;
+  let cur=0;const PG=50;let pg=0;
+  const draw=()=>{const s0=pg*PG+1,e2=Math.min(n,s0+PG-1);
+    $('#rg').innerHTML=n>PG?Array.from({length:Math.ceil(n/PG)},(_,i)=>`<button class="chip${i===pg?' on':''}" data-p="${i}">${i*PG+1}–${Math.min(n,(i+1)*PG)}</button>`).join(''):'';
+    $('#eps').innerHTML=Array.from({length:e2-s0+1},(_,i)=>`<button data-e="${s0+i}"${s0+i===cur?' class="on"':''}>${s0+i}</button>`).join('')};
   const play=e=>{
-    if(e<1||e>n)return;cur=e;
+    if(e<1||e>n)return;cur=e;window.nextEp=()=>play(e+1);
+    {const h=hist();h[m.id]={e,t:T(m),c:m.coverImage.large,ts:Date.now()};try{localStorage.setItem('kw',JSON.stringify(h))}catch{}}
+    if(Math.floor((e-1)/PG)!==pg){pg=Math.floor((e-1)/PG);draw()}
     document.querySelectorAll('#eps button').forEach(b=>b.classList.toggle('on',+b.dataset.e===e));
     $('#ep').textContent='Episode '+e;
     const c=cfg(),box=$('#pl'),dl=$('#dl');dl.hidden=true;if(hls){hls.destroy();hls=null}
@@ -354,6 +389,9 @@ async function show(id){
   };
   const tr=$('#tr');if(tr)tr.onclick=()=>{$('#pl').innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${E(m.trailer.id)}?autoplay=1" allowfullscreen allow="autoplay;fullscreen"></iframe>`;$('#pl').scrollIntoView({behavior:'smooth',block:'center'})};
   $('#eps').onclick=ev=>{const b=ev.target.closest('button');if(b)play(+b.dataset.e)};
+  $('#rg').onclick=ev=>{const b=ev.target.closest('[data-p]');if(b){pg=+b.dataset.p;draw()}};
+  $('#jp').onchange=ev=>{const v=+ev.target.value;if(v>=1&&v<=n){pg=Math.floor((v-1)/PG);draw();play(v)}ev.target.value=''};
+  draw();const rs=$('#rs');if(rs)rs.onclick=()=>{pg=Math.floor((w.e-1)/PG);draw();play(w.e)};
   $('#pv').onclick=()=>play(cur-1);$('#nx').onclick=()=>play(cur+1);
 }
 
@@ -385,9 +423,8 @@ async function mshow(id){
   const L=lang();
   app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(MC(m).replace('.256.jpg','.512.jpg'))}')"></div><div class="in"><h1 style="font-size:24px">${E(MT(a))}</h1>
   <div class="mu">${a.year||''} · ${E(a.status||'')} · ${E(a.tags.map(t=>t.attributes.name.en).slice(0,6).join(', '))}</div>
-  <div class="sy">${E(ds)}</div>
-  <select id="lg" class="f" style="background:var(--b2);border:1px solid var(--b3);border-radius:9px;padding:7px 10px"><option value="en"${L==='en'?' selected':''}>Bahasa Inggris</option><option value="id"${L==='id'?' selected':''}>Bahasa Indonesia</option></select></div></div>
-  <h2>${ch.length} Chapter</h2>`+(ch.length?`<div class="cl">${ch.map(c=>`<a href="#/r/${id}/${c.id}">Ch. ${E(c.attributes.chapter||'?')}${c.attributes.title?' · '+E(c.attributes.title.slice(0,18)):''}</a>`).join('')}</div>`:'<p class="msg">Belum ada chapter yang bisa dibaca di bahasa ini. Coba bahasa lain.</p>');
+    <select id="lg" class="f" style="background:var(--b2);border:1px solid var(--b3);border-radius:9px;padding:7px 10px"><option value="en"${L==='en'?' selected':''}>Bahasa Inggris</option><option value="id"${L==='id'?' selected':''}>Bahasa Indonesia</option></select></div></div>${SY(E(ds))}
+  <h2 class="sec">${ch.length} Chapter</h2>`+(ch.length?`<div class="cl">${ch.map(c=>`<a href="#/r/${id}/${c.id}">Ch. ${E(c.attributes.chapter||'?')}${c.attributes.title?' · '+E(c.attributes.title.slice(0,18)):''}</a>`).join('')}</div>`:'<p class="msg">Belum ada chapter yang bisa dibaca di bahasa ini. Coba bahasa lain.</p>');
   $('#lg').onchange=e=>{localStorage.setItem('ml',e.target.value);route()};
 }
 async function read(mid,cid){
@@ -408,9 +445,9 @@ function set(){
 }
 async function route(){
   if(hls){hls.destroy();hls=null}
-  const [,p,a,b]=location.hash.slice(1).split('/');scrollTo(0,0);
+  const [,p,a,b]=location.hash.slice(1).split('/');scrollTo(0,0);setNav();app.innerHTML=SK;
   try{p==='o'?(a==='list'?await otakuListPage():a==='d'?await otakuDetail(b):a==='watch'?await otakuWatch(b):a==='genres'?await otakuGenres():a==='genre'?await otakuGenre(b):a==='schedule'?await otakuSchedulePage():await otakuPage(a==='completed'?'completed':'ongoing')):p==='a'?await show(a):p==='m'?await(a?mshow(a):mhome()):p==='ms'?await mfind(decodeURIComponent(a||'')):p==='r'?await read(a,b):p==='s'?await find(decodeURIComponent(a||'')):p==='set'?set():await home()}
-  catch(e){app.innerHTML=`<p class="msg">Gagal memuat: ${E(e.message)}<br><br><button class="btn" onclick="route()">Coba lagi</button></p>`}
+  catch(e){app.innerHTML=`<p class="msg">Ups, halaman gagal dimuat.<br><small>${E(e.message)}</small><br><br><button class="btn" onclick="route()">Coba lagi</button></p>`}
 }
 $('#sf').onsubmit=e=>{e.preventDefault();const q=$('#si').value.trim();if(q)location.hash=(/^#\/(m|ms|r)(\/|$)/.test(location.hash)?'#/ms/':'#/s/')+encodeURIComponent(q)};
 addEventListener('hashchange',route);route();
