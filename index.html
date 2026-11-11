@@ -102,6 +102,7 @@ body.rd-mode #bn{display:none}
 .hs{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));overflow:visible}.hs .c{flex:none}
 #sanka-servers{flex-wrap:wrap;overflow:visible}#sanka-servers .chip{white-space:normal}
 .dlr{display:flex;gap:10px;align-items:flex-start;margin:8px 0}.dlr>b{flex:0 0 58px;padding-top:8px;font-size:14px}.dlr .chips{margin:0;flex:1}.dlr .chip{min-height:36px;display:inline-flex;align-items:center}
+.g>.cw{animation:fin .4s ease both}.cw .rl{display:block;margin-top:-6px;padding:0 2px 6px;font-size:12px;color:var(--ac);font-weight:600}
 </style>
 </head>
 <body>
@@ -136,8 +137,8 @@ const SY=t=>`<div class="sec"><h3 class="sh">Sinopsis</h3><div class="sy c3">${t
 document.addEventListener('click',e=>{const b=e.target.closest('.lk');if(b){const o=b.previousElementSibling.classList.toggle('c3');b.textContent=o?'Baca selengkapnya':'Tutup'}});
 const SK=`<div class="g">${'<div class="c"><div class="im sk"></div><div class="nm sk" style="height:14px;margin-top:8px"></div></div>'.repeat(12)}</div>`;
 const NAV_A=[['#/','🏠','Beranda',h=>h==='#/'||/^#\/(a|s)(\/|$)/.test(h)],['#/o/ongoing','📺','Ongoing',h=>/^#\/o\/(ongoing|completed)/.test(h)],['#/o/schedule','📅','Jadwal',h=>/^#\/o\/schedule/.test(h)],['#/o/list','📚','Daftar',h=>/^#\/o\/(list|d|e)(\/|$)/.test(h)],['#/o/genres','🏷️','Genre',h=>/^#\/o\/(genres|g)(\/|$)/.test(h)]];
-const NAV_M=[['#/m','🏠','Beranda',h=>h==='#/m'||/^#\/ms\//.test(h)||(/^#\/m\//.test(h)&&!/^#\/m\/t\//.test(h))],['#/m/t/pop','🔥','Populer',h=>/^#\/m\/t\/pop/.test(h)],['#/m/t/ongoing','🟢','Ongoing',h=>/^#\/m\/t\/ongoing/.test(h)],['#/m/t/done','✅','Tamat',h=>/^#\/m\/t\/done/.test(h)],['#/m/t/new','🆕','Terbaru',h=>/^#\/m\/t\/new/.test(h)]];
-const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#si').placeholder=mg?'Cari manga…':'Cari anime…';document.body.classList.toggle('rd-mode',/^#\/r\//.test(h));$('#bn').innerHTML=(mg?NAV_M:NAV_A).map(([href,ic,nm,t])=>`<a href="${href}"${t(h)?' class="on" aria-current="page"':''}><span>${nm}</span></a>`).join('')};
+const NAV_M=[['#/m','🏠','Beranda',h=>h==='#/m'||/^#\/ms\//.test(h)||(/^#\/m\//.test(h)&&!/^#\/m\/t\//.test(h))],['#/m/t/pop','🔥','Populer',h=>/^#\/m\/t\/pop/.test(h)],['#/m/t/ongoing','🟢','Ongoing',h=>/^#\/m\/t\/ongoing/.test(h)],['#/m/t/done','✅','Tamat',h=>/^#\/m\/t\/done/.test(h)]];
+const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#si').placeholder=mg?'Cari manga…':'Cari anime…';document.body.classList.toggle('rd-mode',/^#\/r\//.test(h));const NV=mg?NAV_M:NAV_A;$('#bn').style.gridTemplateColumns='repeat('+NV.length+',1fr)';$('#bn').innerHTML=NV.map(([href,ic,nm,t])=>`<a href="${href}"${t(h)?' class="on" aria-current="page"':''}><span>${nm}</span></a>`).join('')};
 function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,6);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/a/${id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${x.e}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
 // Sanka proxy: API upstream dipanggil dari Vercel Function agar tidak terkena CORS.
 async function sankaFetch(path){
@@ -664,14 +665,49 @@ function imgFb(el){
 const mImg=(src,alt,cls='')=>src?`<img ${cls?`class="${cls}" `:''}loading="lazy" referrerpolicy="no-referrer" src="${E(px(src))}" alt="${E(alt)}" onerror="imgFb(this)">`:'';
 const mCard=m=>`<a class="c" href="#/m/${E(m.id)}"><div class="im">${mImg(mCover(m),mT(m))}${m.attributes.year?`<span class="bd">${E(m.attributes.year)}</span>`:''}${m.attributes.status==='completed'?'<span class="bd b2">Tamat</span>':''}</div><div class="nm">${E(mT(m))}</div></a>`;
 const mGrid=l=>l.length?`<div class="g">${l.map(mCard).join('')}</div>`:'<div class="msg">Tidak ada manga ditemukan untuk bahasa ini. Ganti bahasa di Pengaturan (⚙).</div>';
-const MK={pop:{t:'Populer',h:'📖 Manga Populer',q:'&order[followedCount]=desc'},ongoing:{t:'Ongoing',h:'🟢 Manga Ongoing',q:'&status[]=ongoing&order[latestUploadedChapter]=desc'},done:{t:'Tamat',h:'✅ Manga Tamat',q:'&status[]=completed&order[followedCount]=desc'},new:{t:'Update Terbaru',h:'🆕 Baru Diperbarui',q:'&order[latestUploadedChapter]=desc'}};
+const MK={pop:{t:'Populer',h:'📖 Manga Populer',q:'&order[followedCount]=desc'},ongoing:{t:'Ongoing',h:'🟢 Manga Ongoing',q:'&status[]=ongoing&order[latestUploadedChapter]=desc'},done:{t:'Tamat',h:'✅ Manga Tamat',q:'&status[]=completed&order[followedCount]=desc'}};
 const mTabs=k=>'';
 const mQ=(k,pg)=>`/manga?limit=24&offset=${(pg-1)*24}&includes[]=cover_art&availableTranslatedLanguage[]=${mLang()}&hasAvailableChapters=true${MR}${MK[k].q}`;
+const MTYPE={ko:'Manhwa',ja:'Manga',zh:'Manhua','zh-hk':'Manhua'};
+const MFILT=[['','Semua'],['ko','Manhwa'],['ja','Manga'],['zh','Manhua']];
+let mH={f:'',off:0,list:[],seen:new Set(),more:true};
+async function mdLatestBatch(){
+  const L=mLang();
+  const j=await mdFetch(`/chapter?limit=100&offset=${mH.off}&translatedLanguage[]=${L}&order[readableAt]=desc&includeFutureUpdates=0&includeEmptyPages=0&includeExternalUrl=0&contentRating[]=safe&contentRating[]=suggestive&includes[]=manga${mH.f?'&originalLanguage[]='+mH.f:''}`);
+  mH.off+=100;mH.more=mH.off<(j.total||0)&&j.data.length>0;
+  const ents=[];
+  for(const c of j.data){
+    const r=(c.relationships||[]).find(x=>x.type==='manga');
+    if(!r||mH.seen.has(r.id))continue;mH.seen.add(r.id);
+    const a=c.attributes;
+    ents.push({mid:r.id,ch:c.id,num:a.chapter,at:Math.floor(new Date(a.readableAt||a.publishAt||a.createdAt).getTime()/1000)||0,lang:r.attributes&&r.attributes.originalLanguage});
+  }
+  const use=ents.slice(0,60);
+  if(!use.length)return;
+  const mj=await mdFetch('/manga?limit='+use.length+'&'+use.map(e=>'ids[]='+e.mid).join('&')+'&includes[]=cover_art'+MR);
+  const mm={};mj.data.forEach(m=>mm[m.id]=m);
+  use.forEach(e=>{if(mm[e.mid])mH.list.push({...e,m:mm[e.mid]})});
+}
+const mLatestCard=e=>{const t=mT(e.m),ty=MTYPE[e.lang]||'';return `<div class="cw"><a class="c" href="#/m/${E(e.mid)}"><div class="im">${mImg(mCover(e.m),t)}${ty?`<span class="bd">${ty}</span>`:''}<span class="bd b2">${e.num!=null?'Ch. '+E(e.num):'Oneshot'}</span></div><div class="nm">${E(t)}</div></a><a class="rl" href="#/r/${E(e.ch)}">${e.at?E(e.at>Math.floor(Date.now()/1000)-60?'Baru saja':rel(e.at))+' • '+E(jam(e.at))+' WIB':'Baca chapter'}</a></div>`};
+function mHomeDraw(extra){
+  const L=mLang();
+  app.innerHTML=contRead()+`<h2>🆕 Rilis Terbaru</h2><div class="mu">Chapter yang baru rilis • Bahasa: ${L==='id'?'Indonesia':'English'} • waktu WIB</div>
+  <div class="chips" id="mf" style="margin-top:10px">${MFILT.map(([v,n])=>`<button class="chip${v===mH.f?' on':''}" data-f="${v}">${n}</button>`).join('')}</div>
+  <div id="mh">${extra||(mH.list.length?`<div class="g">${mH.list.map(mLatestCard).join('')}</div>`:'<div class="msg">Belum ada rilisan baru untuk filter ini. Coba filter lain atau ganti bahasa di Pengaturan (⚙).</div>')}</div>
+  ${mH.more&&mH.list.length&&!extra?'<div class="pg"><button class="btn" id="mmore">Muat lebih banyak</button></div>':''}`;
+  const live=()=>location.hash==='#/m';
+  const fail=e=>{if(live())$('#mh').innerHTML=`<div class="msg">Gagal memuat.<br><small>${E(e.message)}</small></div>`};
+  $('#mf').onclick=async e=>{const b=e.target.closest('[data-f]');if(!b)return;
+    mH={f:b.dataset.f,off:0,list:[],seen:new Set(),more:true};mHomeDraw(SK);
+    try{await mdLatestBatch();if(live())mHomeDraw()}catch(x){fail(x)}};
+  const mb=$('#mmore');if(mb)mb.onclick=async()=>{mb.disabled=true;mb.textContent='Memuat…';
+    try{let n=mH.list.length,g=0;while(mH.list.length===n&&mH.more&&g++<3)await mdLatestBatch();if(live())mHomeDraw()}catch(x){mb.disabled=false;mb.textContent='Muat lebih banyak';fail(x)}};
+}
 async function vMangaHome(){
-  app.innerHTML=SK;const L=mLang();
-  const [a,b]=await Promise.all([mdFetch(mQ('ongoing',1)),mdFetch(mQ('done',1))]);
-  const more=k=>`<div class="pg"><a class="btn s" href="#/m/t/${k}">Lihat semua →</a></div>`;
-  app.innerHTML=mTabs('')+contRead()+`<div class="mu">Bahasa: ${L==='id'?'Indonesia':'English'} • data langsung dari MangaDex, selalu terbaru</div><h2>${MK.ongoing.h}</h2>${mGrid(a.data)}${more('ongoing')}<h2>${MK.done.h}</h2>${mGrid(b.data)}${more('done')}`;
+  app.innerHTML=SK;
+  mH={f:mH.f,off:0,list:[],seen:new Set(),more:true};
+  await mdLatestBatch();
+  mHomeDraw();
 }
 async function vMangaList(k,pg){
   if(!MK[k])k='pop';pg=Math.max(1,+pg||1);
