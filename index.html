@@ -103,6 +103,8 @@ body.rd-mode #bn{display:none}
 #sanka-servers{flex-wrap:wrap;overflow:visible}#sanka-servers .chip{white-space:normal}
 .dlr{display:flex;gap:10px;align-items:flex-start;margin:8px 0}.dlr>b{flex:0 0 58px;padding-top:8px;font-size:14px}.dlr .chips{margin:0;flex:1}.dlr .chip{min-height:36px;display:inline-flex;align-items:center}
 .g>.cw{animation:fin .4s ease both}.cw .rl{display:block;margin-top:-6px;padding:0 2px 6px;font-size:12px;color:var(--ac);font-weight:600}
+.eps .seen:not(.on){color:var(--ac);border-color:var(--ac);opacity:.8}
+.pgv{position:relative;max-width:820px;margin:auto}.pgv img{width:100%;display:block;min-height:300px;background:var(--b2)}.pz{position:absolute;top:0;bottom:0;width:50%;cursor:pointer}.pl2{left:0}.pr2{right:0}
 </style>
 </head>
 <body>
@@ -294,11 +296,20 @@ async function playSankaEpisode(slug,title,src='sh'){
     return true;
   }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat video.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka sumber ↗</a></div>`;return false;}
 }
+const mmss=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
+function trackVideo(v){
+  const k=window.vidKey;if(!v||!k)return;
+  const h=hist()[k.id],pos=h&&h.pos&&h.pos.e===k.ep?h.pos.s:0;
+  let last=0;
+  v.addEventListener('loadedmetadata',()=>{if(pos>20&&v.duration&&pos<v.duration-60){try{v.currentTime=pos}catch{}}},{once:true});
+  v.addEventListener('timeupdate',()=>{const n=Date.now();if(n-last<5000)return;last=n;if(v.currentTime>5)saveHist(k.id,{pos:{e:k.ep,s:Math.floor(v.currentTime)}})});
+  v.addEventListener('ended',()=>saveHist(k.id,{pos:null}));
+}
 function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
   if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
-    box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');hls=new Hls();hls.loadSource(url);hls.attachMedia(v);
+    box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');hls=new Hls();hls.loadSource(url);hls.attachMedia(v);trackVideo(v);
   }else if(/\.(mp4|webm|ogg)(\?|$)/i.test(url)){
-    box.innerHTML='<video controls autoplay playsinline></video>';box.querySelector('video').src=url;
+    box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');v.src=url;trackVideo(v);
   }else{
     box.innerHTML=`<iframe src="${E(url)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
   }
@@ -417,8 +428,46 @@ function vFav(tab){
   const t=tab==='a'||tab==='m'?tab:'';
   const l=Object.entries(favs()).filter(([k,x])=>x&&x.h&&x.h[0]==='#'&&(!t||(t==='a'?/^[ao]:/.test(k):k[0]==='m'))).sort((a,b)=>b[1].ts-a[1].ts);
   const tb=`<div class="tabs">${[['','Semua'],['a','Anime'],['m','Manga']].map(([v,n])=>`<a href="#/fav${v?'/'+v:''}"${v===t?' class="on"':''}>${n}</a>`).join('')}</div>`;
-  app.innerHTML=`<h2>❤ Favorit</h2>${tb}`+(l.length?`<div class="g">${l.map(([k,x])=>`<a class="c" href="${E(x.h)}"><div class="im">${mImg(x.c,x.t)}<span class="bd">${k[0]==='m'?'Manga':'Anime'}</span><span class="rm" role="button" data-rm="${E(k)}" aria-label="Hapus dari favorit">✕</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:'<div class="msg">Belum ada favorit.<br>Tekan 🤍 Favorit di halaman anime atau manga.</div>');
+  app.innerHTML=`<h2>❤ Favorit</h2>${tb}`+(l.length?`<div class="g">${l.map(([k,x])=>`<a class="c" data-fk="${E(k)}" href="${E(x.h)}"><div class="im">${mImg(x.c,x.t)}<span class="bd">${k[0]==='m'?'Manga':'Anime'}</span><span class="rm" role="button" data-rm="${E(k)}" aria-label="Hapus dari favorit">✕</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:'<div class="msg">Belum ada favorit.<br>Tekan 🤍 Favorit di halaman anime atau manga.</div>');
   document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const o=favs();delete o[b.dataset.rm];setFavs(o);vFav(tab)});
+  favNews(l);
+}
+const favNewCache={};
+function favMark(k,txt){if(!txt)return;const a=[...document.querySelectorAll('[data-fk]')].find(x=>x.dataset.fk===k);if(a&&!a.querySelector('.nwb'))a.querySelector('.im').insertAdjacentHTML('beforeend',`<span class="bd b2 nwb">${E(txt)}</span>`)}
+async function favNews(l){
+  const fresh=k=>favNewCache[k]&&Date.now()-favNewCache[k].t<600000;
+  const A=l.filter(([k])=>/^a:\d+$/.test(k)).slice(0,40),M=l.filter(([k])=>k[0]==='m').slice(0,12);
+  A.forEach(([k])=>fresh(k)&&favMark(k,favNewCache[k].txt));M.forEach(([k])=>fresh(k)&&favMark(k,favNewCache[k].txt));
+  const needA=A.filter(([k])=>!fresh(k)),needM=M.filter(([k])=>!fresh(k));
+  if(needA.length){
+    try{
+      const ids=needA.map(([k])=>+k.slice(2));
+      const d=await gql('query($ids:[Int]){Page(perPage:50){media(id_in:$ids,type:ANIME){id episodes status nextAiringEpisode{episode}}}}',{ids});
+      (d.Page.media||[]).forEach(m=>{
+        const k='a:'+m.id,h=hist()[m.id];
+        const latest=m.nextAiringEpisode?m.nextAiringEpisode.episode-1:(m.episodes||0);
+        const txt=!latest?'':h&&h.e?(latest>h.e?'Eps '+latest+' baru':''):(m.status==='RELEASING'?'Eps '+latest:'');
+        favNewCache[k]={t:Date.now(),txt};favMark(k,txt);
+      });
+    }catch{}
+  }
+  const L=mLang(),langs=mLangs();
+  const one=async k=>{
+    const id=k.slice(2);let ch=null;
+    try{
+      for(const lg of langs){
+        const j=await mdFetch(`/manga/${id}/feed?limit=1&order[readableAt]=desc&translatedLanguage[]=${lg}&includeExternalUrl=0&includeEmptyPages=0&includeFutureUpdates=0${MR}`);
+        if(j.data&&j.data[0]){ch=j.data[0];break}
+      }
+    }catch{return}
+    if(!ch)return;
+    const pr=prog()[id],isRead=pr&&((pr.r||[]).includes(ch.id)||pr.ch===ch.id);
+    const n=ch.attributes.chapter!=null?'Ch. '+ch.attributes.chapter:'Oneshot';
+    const txt=pr?(isRead?'':n+' baru'):n;
+    favNewCache[k]={t:Date.now(),txt};favMark(k,txt);
+  };
+  let q=needM.map(([k])=>k);
+  await Promise.all([0,1,2].map(async()=>{while(q.length){await one(q.shift())}}));
 }
 const errBox=(e,retry)=>`<div class="msg">Terjadi kesalahan.<br><small>${E(e&&e.message||e)}</small><br><br><button class="btn" onclick="${retry||'route()'}">Coba lagi</button></div>`;
 const FL='id title{romaji english} coverImage{large}averageScore nextAiringEpisode{episode airingAt}';
@@ -441,15 +490,15 @@ async function vAnime(id){
   const m=(await gql(`query($id:Int){Media(id:$id,type:ANIME){${F}}}`,{id:+id})).Media;
   const titles=[m.title.romaji,m.title.english,...(m.synonyms||[])].filter(Boolean);
   const total=m.episodes||(m.nextAiringEpisode?m.nextAiringEpisode.episode-1:0)||(m.streamingEpisodes||[]).length||0;
-  const h=hist()[id];
+  const h=hist()[id];const W=new Set((h&&h.w)||[]);
   app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(m.coverImage.large)}')"></div><div class="in"><h2 style="margin-top:0">${E(T(m))}</h2>
   <div class="mu">${[m.seasonYear,m.status,m.averageScore?'★ '+(m.averageScore/10).toFixed(1):'',total?total+' eps':''].filter(Boolean).map(E).join(' • ')}</div>
   <div class="chips">${(m.genres||[]).map(g=>`<span class="chip">${E(g)}</span>`).join('')}</div>
   ${m.nextAiringEpisode&&m.nextAiringEpisode.airingAt?`<div class="mu" style="margin:8px 0">⏰ Eps ${m.nextAiringEpisode.episode} tayang <b>${E(fullWIB(m.nextAiringEpisode.airingAt))}</b> (${E(rel(m.nextAiringEpisode.airingAt))})</div>`:''}
-  ${TR(m)}${total?`<button class="btn" id="pf">▶ Tonton Eps ${h&&h.e?h.e:1}</button>`:''}${favBtn('a:'+id)}</div></div>
+  ${TR(m)}${total?`<button class="btn" id="pf">▶ Tonton Eps ${h&&h.e?h.e:1}${h&&h.pos&&h.pos.e===h.e?' • lanjut '+mmss(h.pos.s):''}</button>`:''}${favBtn('a:'+id)}</div></div>
   <div class="pl" id="pl"><div class="msg">${total?'Pilih episode untuk mulai menonton.':'Belum ada episode yang tayang.'}</div></div>
   ${total?`<div class="chips" id="srcbar"><button class="chip on" data-src="auto">Otomatis</button><button class="chip" data-src="sh">Server 1</button><button class="chip" data-src="ota">Server 2</button><button class="chip" data-src="yt">YouTube</button></div><p class="mu" id="srcst"></p>`:''}
-  ${total?`<div class="bar"><b>Episode</b>${total>40?`<input class="jp" id="jp" type="number" min="1" max="${total}" placeholder="Ke eps">`:''}</div><div class="eps" id="eps">${Array.from({length:total},(_,i)=>`<button data-e="${i+1}">${i+1}</button>`).join('')}</div>`:''}
+  ${total?`<div class="bar"><b>Episode</b>${total>40?`<input class="jp" id="jp" type="number" min="1" max="${total}" placeholder="Ke eps">`:''}</div><div class="eps" id="eps">${Array.from({length:total},(_,i)=>`<button data-e="${i+1}"${W.has(i+1)?' class="seen"':''}>${i+1}</button>`).join('')}</div>`:''}
   <div id="off">${OFF(m)}</div>${SY(clean(m.description))}`;
   bindFav('a:'+id,{t:T(m),c:m.coverImage.large,h:'#/a/'+id});
   let cur=0,tok=0,mode='auto';
@@ -460,7 +509,10 @@ async function vAnime(id){
     const dlb=document.getElementById('dl-box');if(dlb)dlb.remove();
     if(hls){try{hls.destroy()}catch{}hls=null}
     const box=$('#pl'),st=$('#srcst');
-    saveHist(id,{t:T(m),c:m.coverImage.large,e:ep});
+    const h0=hist()[id]||{};
+    saveHist(id,{t:T(m),c:m.coverImage.large,e:ep,w:[...new Set([...(h0.w||[]),ep])].slice(-500),pos:h0.pos&&h0.pos.e===ep?h0.pos:null});
+    window.vidKey={id,ep};
+    const sb2=document.querySelector('#eps [data-e="'+ep+'"]');if(sb2)sb2.classList.add('seen');
     window.nextEp=()=>{if(cfg().an!==false&&cur<total)play(cur+1)};
     const pf=$('#pf');if(pf)pf.textContent='▶ Tonton Eps '+ep;
     const chain=mode==='auto'?['sh','ota','yt']:[mode];
@@ -650,6 +702,7 @@ async function mdFetch(path){
   return j;
 }
 const mLang=()=>cfg().ml||'id';
+const mLangs=()=>mLang()==='id'&&cfg().mf!==false?['id','en']:[mLang()];
 const mT=m=>{const t=m.attributes.title||{};return t.en||t[Object.keys(t)[0]]||'Tanpa judul'};
 const mCover=(m,s=256)=>{const c=(m.relationships||[]).find(r=>r.type==='cover_art');return c&&c.attributes&&c.attributes.fileName?`https://uploads.mangadex.org/covers/${m.id}/${c.attributes.fileName}.${s}.jpg`:''};
 const px=u=>cfg().ip&&/mangadex\.(org|network)/i.test(u)?'/api/md?u='+encodeURIComponent(u):u;
@@ -667,20 +720,23 @@ const mCard=m=>`<a class="c" href="#/m/${E(m.id)}"><div class="im">${mImg(mCover
 const mGrid=l=>l.length?`<div class="g">${l.map(mCard).join('')}</div>`:'<div class="msg">Tidak ada manga ditemukan untuk bahasa ini. Ganti bahasa di Pengaturan (⚙).</div>';
 const MK={pop:{t:'Populer',h:'📖 Manga Populer',q:'&order[followedCount]=desc'},ongoing:{t:'Ongoing',h:'🟢 Manga Ongoing',q:'&status[]=ongoing&order[latestUploadedChapter]=desc'},done:{t:'Tamat',h:'✅ Manga Tamat',q:'&status[]=completed&order[followedCount]=desc'}};
 const mTabs=k=>'';
-const mQ=(k,pg)=>`/manga?limit=24&offset=${(pg-1)*24}&includes[]=cover_art&availableTranslatedLanguage[]=${mLang()}&hasAvailableChapters=true${MR}${MK[k].q}`;
+const mQ=(k,pg)=>`/manga?limit=24&offset=${(pg-1)*24}&includes[]=cover_art${mLangs().map(l=>'&availableTranslatedLanguage[]='+l).join('')}&hasAvailableChapters=true${MR}${MK[k].q}`;
 const MTYPE={ko:'Manhwa',ja:'Manga',zh:'Manhua','zh-hk':'Manhua'};
 const MFILT=[['','Semua'],['ko','Manhwa'],['ja','Manga'],['zh','Manhua']];
-let mH={f:'',off:0,list:[],seen:new Set(),more:true};
+const mHnew=f=>({f:f||'',off:0,li:0,list:[],seen:new Set(),more:true});
+let mH=mHnew('');
 async function mdLatestBatch(){
-  const L=mLang();
+  const langs=mLangs(),L=langs[Math.min(mH.li,langs.length-1)];
   const j=await mdFetch(`/chapter?limit=100&offset=${mH.off}&translatedLanguage[]=${L}&order[readableAt]=desc&includeFutureUpdates=0&includeEmptyPages=0&includeExternalUrl=0&contentRating[]=safe&contentRating[]=suggestive&includes[]=manga${mH.f?'&originalLanguage[]='+mH.f:''}`);
-  mH.off+=100;mH.more=mH.off<(j.total||0)&&j.data.length>0;
+  mH.off+=100;
+  const more=mH.off<(j.total||0)&&j.data.length>0;
+  if(!more&&mH.li<langs.length-1){mH.li++;mH.off=0;mH.more=true}else mH.more=more;
   const ents=[];
   for(const c of j.data){
     const r=(c.relationships||[]).find(x=>x.type==='manga');
     if(!r||mH.seen.has(r.id))continue;mH.seen.add(r.id);
     const a=c.attributes;
-    ents.push({mid:r.id,ch:c.id,num:a.chapter,at:Math.floor(new Date(a.readableAt||a.publishAt||a.createdAt).getTime()/1000)||0,lang:r.attributes&&r.attributes.originalLanguage});
+    ents.push({mid:r.id,ch:c.id,num:a.chapter,lc:L,at:Math.floor(new Date(a.readableAt||a.publishAt||a.createdAt).getTime()/1000)||0,lang:r.attributes&&r.attributes.originalLanguage});
   }
   const use=ents.slice(0,60);
   if(!use.length)return;
@@ -688,25 +744,31 @@ async function mdLatestBatch(){
   const mm={};mj.data.forEach(m=>mm[m.id]=m);
   use.forEach(e=>{if(mm[e.mid])mH.list.push({...e,m:mm[e.mid]})});
 }
-const mLatestCard=e=>{const t=mT(e.m),ty=MTYPE[e.lang]||'';return `<div class="cw"><a class="c" href="#/m/${E(e.mid)}"><div class="im">${mImg(mCover(e.m),t)}${ty?`<span class="bd">${ty}</span>`:''}<span class="bd b2">${e.num!=null?'Ch. '+E(e.num):'Oneshot'}</span></div><div class="nm">${E(t)}</div></a><a class="rl" href="#/r/${E(e.ch)}">${e.at?E(e.at>Math.floor(Date.now()/1000)-60?'Baru saja':rel(e.at))+' • '+E(jam(e.at))+' WIB':'Baca chapter'}</a></div>`};
+async function mdFill(){
+  const langs=mLangs();
+  await mdLatestBatch();
+  if(mH.list.length<24&&langs.length>1&&mH.li===0){mH.li=1;mH.off=0;mH.more=true}
+  let g=0;while(mH.list.length<24&&mH.more&&g++<2)await mdLatestBatch();
+}
+const mLatestCard=e=>{const t=mT(e.m),ty=MTYPE[e.lang]||'';return `<div class="cw"><a class="c" href="#/m/${E(e.mid)}"><div class="im">${mImg(mCover(e.m),t)}${ty?`<span class="bd">${ty}</span>`:''}${e.lc&&e.lc!==mLang()?'<span class="bd" style="left:auto;right:6px">EN</span>':''}<span class="bd b2">${e.num!=null?'Ch. '+E(e.num):'Oneshot'}</span></div><div class="nm">${E(t)}</div></a><a class="rl" href="#/r/${E(e.ch)}">${e.at?E(e.at>Math.floor(Date.now()/1000)-60?'Baru saja':rel(e.at))+' • '+E(jam(e.at))+' WIB':'Baca chapter'}</a></div>`};
 function mHomeDraw(extra){
   const L=mLang();
-  app.innerHTML=contRead()+`<h2>🆕 Rilis Terbaru</h2><div class="mu">Chapter yang baru rilis • Bahasa: ${L==='id'?'Indonesia':'English'} • waktu WIB</div>
+  app.innerHTML=contRead()+`<h2>🆕 Rilis Terbaru</h2><div class="mu">Chapter yang baru rilis • Bahasa: ${L==='id'?'Indonesia'+(mLangs().length>1?' (+ English bila sedikit)':''):'English'} • waktu WIB</div>
   <div class="chips" id="mf" style="margin-top:10px">${MFILT.map(([v,n])=>`<button class="chip${v===mH.f?' on':''}" data-f="${v}">${n}</button>`).join('')}</div>
   <div id="mh">${extra||(mH.list.length?`<div class="g">${mH.list.map(mLatestCard).join('')}</div>`:'<div class="msg">Belum ada rilisan baru untuk filter ini. Coba filter lain atau ganti bahasa di Pengaturan (⚙).</div>')}</div>
   ${mH.more&&mH.list.length&&!extra?'<div class="pg"><button class="btn" id="mmore">Muat lebih banyak</button></div>':''}`;
   const live=()=>location.hash==='#/m';
   const fail=e=>{if(live())$('#mh').innerHTML=`<div class="msg">Gagal memuat.<br><small>${E(e.message)}</small></div>`};
   $('#mf').onclick=async e=>{const b=e.target.closest('[data-f]');if(!b)return;
-    mH={f:b.dataset.f,off:0,list:[],seen:new Set(),more:true};mHomeDraw(SK);
-    try{await mdLatestBatch();if(live())mHomeDraw()}catch(x){fail(x)}};
+    mH=mHnew(b.dataset.f);mHomeDraw(SK);
+    try{await mdFill();if(live())mHomeDraw()}catch(x){fail(x)}};
   const mb=$('#mmore');if(mb)mb.onclick=async()=>{mb.disabled=true;mb.textContent='Memuat…';
     try{let n=mH.list.length,g=0;while(mH.list.length===n&&mH.more&&g++<3)await mdLatestBatch();if(live())mHomeDraw()}catch(x){mb.disabled=false;mb.textContent='Muat lebih banyak';fail(x)}};
 }
 async function vMangaHome(){
   app.innerHTML=SK;
-  mH={f:mH.f,off:0,list:[],seen:new Set(),more:true};
-  await mdLatestBatch();
+  mH=mHnew(mH.f);
+  await mdFill();
   mHomeDraw();
 }
 async function vMangaList(k,pg){
@@ -738,7 +800,9 @@ const mEst=l=>{const r=l.filter(c=>c.at).slice(-10);if(r.length<4)return '';cons
 const chLabel=c=>(c.num!=null?'Ch. '+c.num:'Oneshot')+(c.title?' – '+c.title:'');
 async function vManga(id){
   app.innerHTML=SK;const L=mLang();
-  const [mj,chs]=await Promise.all([mdFetch(`/manga/${id}?includes[]=cover_art&includes[]=author`),getChapters(id,L)]);
+  const [mj,chs0]=await Promise.all([mdFetch(`/manga/${id}?includes[]=cover_art&includes[]=author`),getChapters(id,L)]);
+  let chs=chs0,fbk=false;
+  if(!chs.length&&L==='id'&&cfg().mf!==false){try{const en=await getChapters(id,'en');if(en.length){chs=en;fbk=true}}catch{}}
   const m=mj.data,a=m.attributes;
   const desc=clean((a.description&&(a.description[L]||a.description.en||a.description[Object.keys(a.description)[0]]))||'').replace(/\n/g,'<br>');
   const tags=(a.tags||[]).map(t=>t.attributes.name.en).filter(Boolean);
@@ -747,7 +811,7 @@ async function vManga(id){
   window._mm={id,t:mT(m),c:mCover(m,256)};
   const pr=prog()[id],prc=pr&&chs.find(c=>c.id===pr.ch),rs=new Set((pr&&pr.r)||[]);
   app.innerHTML=`<div class="d"><div class="cv">${mImg(mCover(m,512),mT(m))}</div><div class="in"><h2 style="margin-top:0">${E(mT(m))}</h2>
-  <div class="mu">${[au,a.year,a.status,chs.length?chs.length+' chapter':''].filter(Boolean).map(E).join(' • ')}</div>
+  <div class="mu">${[au,a.year,a.status,chs.length?chs.length+' chapter'+(fbk?' (English — belum ada versi Indonesia)':''):''].filter(Boolean).map(E).join(' • ')}</div>
   ${chs.length?`<div class="mu" style="margin:6px 0">🕒 Chapter terakhir rilis: <b>${E(fullWIB(chs[chs.length-1].at))}</b>${mEst(chs)?'<br>'+mEst(chs):''}</div>`:''}
   <div class="chips">${tags.slice(0,8).map(t=>`<span class="chip">${E(t)}</span>`).join('')}</div>
   ${chs.length?`${prc?`<a class="btn" href="#/r/${E(prc.id)}">▶ Lanjut ${E(chShort(prc))}</a> `:''}<a class="btn${prc?' s':''}" href="#/r/${E(chs[0].id)}">${prc?'Dari awal':'▶ Baca '+E(chShort(chs[0]))}</a> <a class="btn s" href="#/r/${E(chs[chs.length-1].id)}">Terbaru</a>`:''}${favBtn('m:'+id)}
@@ -775,11 +839,48 @@ async function vReader(id){
     else if(!old.t)mdFetch('/manga/'+enc(mid)+'?includes[]=cover_art').then(j=>saveProg(mid,{t:mT(j.data),c:mCover(j.data,256)})).catch(()=>{});
   }
   const nav=`<div class="bar" style="justify-content:space-between;max-width:820px;margin:10px auto">${prev?`<a class="btn s" href="#/r/${E(prev.id)}">← Sebelumnya</a>`:'<span></span>'}${mid?`<a class="btn s" href="#/m/${E(mid)}">☰ Chapter</a>`:''}${next?`<a class="btn" href="#/r/${E(next.id)}">Berikutnya →</a>`:'<span></span>'}</div>`;
-  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${resume?`<div class="mu rs">↩ Dilanjutkan dari halaman ${resume+1}. <a href="#/r/${E(id)}" id="rtop">Ke atas</a></div>`:''}${nav}<div class="rd">${files.map((f,n)=>`<img loading="${resume&&n<=resume+1?'eager':'lazy'}" referrerpolicy="no-referrer" src="${E(px(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f))}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${nav}`;
+  if(cfg().rm==='page'&&files.length){
+    const urls=files.map(f=>px(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f));
+    let idx=Math.min(resume||0,files.length-1);
+    app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${nav}<div class="pgv" id="pgv"><img id="pgi" referrerpolicy="no-referrer" alt="Halaman" onerror="imgFb(this)"><div class="pz pl2" data-d="-1"></div><div class="pz pr2" data-d="1"></div></div><div class="bar" style="justify-content:center;gap:14px"><button class="btn s" id="pgp">‹ Sebelumnya</button><b id="pgn"></b><button class="btn" id="pgx">Berikutnya ›</button></div><p class="mu" style="text-align:center">Ketuk sisi kanan/kiri gambar untuk pindah halaman.</p>`;
+    const img=$('#pgi');
+    const show=(n,first)=>{
+      if(n>=files.length){if(next)location.hash='#/r/'+next.id;else $('#pgn').textContent='Selesai ✓';return}
+      if(n<0){if(prev)location.hash='#/r/'+prev.id;return}
+      idx=n;img.style.visibility='';delete img.dataset.fb;delete img.dataset.full;img.src=urls[n];
+      $('#pgn').textContent=(n+1)+' / '+files.length;
+      if(mid)saveProg(mid,{p:n});
+      if(urls[n+1]){const pi=new Image();pi.referrerPolicy='no-referrer';pi.src=urls[n+1]}
+      if(!first)$('#pgv').scrollIntoView({block:'start'});
+    };
+    $('#pgv').onclick=e=>{const z=e.target.closest('[data-d]');if(z)show(idx+(+z.dataset.d))};
+    $('#pgp').onclick=()=>show(idx-1);$('#pgx').onclick=()=>show(idx+1);
+    const kd2=e=>{if(location.hash!=='#/r/'+id)return;if(e.key==='ArrowRight')show(idx+1);if(e.key==='ArrowLeft')show(idx-1)};
+    window.addEventListener('keydown',kd2);window._kd=kd2;
+    show(idx,true);
+    return;
+  }
+  app.innerHTML=`<h2 style="text-align:center">${i>=0?E(chLabel(list[i])):'Baca Chapter'}</h2>${resume?`<div class="mu rs">↩ Dilanjutkan dari halaman ${resume+1}. <a href="#/r/${E(id)}" id="rtop">Ke atas</a></div>`:''}${nav}<div class="rd">${files.map((f,n)=>`<img loading="${resume&&n<=resume+1?'eager':'lazy'}" referrerpolicy="no-referrer" src="${E(px(ah.baseUrl+'/'+dir+'/'+ah.chapter.hash+'/'+f))}" alt="Halaman" onerror="imgFb(this)">`).join('')||'<div class="msg">Halaman tidak ditemukan.</div>'}</div>${next?`<div class="rs" id="rend" style="margin:16px 0"><a class="btn" href="#/r/${E(next.id)}">Lanjut ${E(chShort(next))} →</a><div class="mu" id="rcd" style="margin-top:6px"></div></div>`:''}${nav}`;
   const kd=e=>{if(e.key==='ArrowRight'&&next)location.hash='#/r/'+next.id;if(e.key==='ArrowLeft'&&prev)location.hash='#/r/'+prev.id};
   window.addEventListener('keydown',kd);window._kd=kd;
+  let acT=null,acOff=false;
+  const autoNext=()=>{
+    if(!next||!cfg().ac||acOff||acT)return;
+    const imgs=[...document.querySelectorAll('.rd img')];
+    if(!imgs.length||!imgs.every(x=>x.complete)||window.scrollY<300)return;
+    if(window.innerHeight+window.scrollY<document.documentElement.scrollHeight-60)return;
+    let sec=5;const cd=$('#rcd');
+    const tick=()=>{
+      if(location.hash!=='#/r/'+id){clearInterval(acT);return}
+      if(sec<=0){clearInterval(acT);location.hash='#/r/'+next.id;return}
+      if(cd)cd.innerHTML='Lanjut otomatis dalam '+sec+' dtk • <a href="#" id="rcx">Batal</a>';
+      const x=$('#rcx');if(x)x.onclick=e=>{e.preventDefault();acOff=true;clearInterval(acT);if(cd)cd.textContent=''};
+      sec--;
+    };
+    tick();acT=setInterval(tick,1000);
+  };
   let tk=0;
-  const sc=()=>{if(tk||!mid)return;tk=setTimeout(()=>{tk=0;if(location.hash!=='#/r/'+id)return;const im=[...document.querySelectorAll('.rd img')];let k=im.length-1;for(let q=0;q<im.length;q++){if(im[q].getBoundingClientRect().bottom>120){k=q;break}}if(k>=0)saveProg(mid,{p:k})},700)};
+  const sc=()=>{if(tk||!mid)return;tk=setTimeout(()=>{tk=0;if(location.hash!=='#/r/'+id)return;autoNext();const im=[...document.querySelectorAll('.rd img')];let k=im.length-1;for(let q=0;q<im.length;q++){if(im[q].getBoundingClientRect().bottom>120){k=q;break}}if(k>=0)saveProg(mid,{p:k})},700)};
   window.addEventListener('scroll',sc,{passive:true});window._sc=sc;
   const rt=$('#rtop');if(rt)rt.onclick=e=>{e.preventDefault();window.scrollTo(0,0)};
   if(resume){
@@ -796,12 +897,43 @@ function vSettings(){
   <label class="mu">Putar episode berikutnya otomatis</label><select id="s-an"><option value="1"${c.an!==false?' selected':''}>Ya</option><option value="0"${c.an===false?' selected':''}>Tidak</option></select>
   <label class="mu">Mode hemat data (manga)</label><select id="s-ds"><option value="0"${!c.ds?' selected':''}>Mati</option><option value="1"${c.ds?' selected':''}>Hidup</option></select>
   <label class="mu">Muat gambar manga lewat server (aktifkan jika gambar tidak muncul)</label><select id="s-ip"><option value="0"${!c.ip?' selected':''}>Mati</option><option value="1"${c.ip?' selected':''}>Hidup</option></select>
+  <label class="mu">Cadangan bahasa Inggris jika chapter Indonesia belum ada</label><select id="s-mf"><option value="1"${c.mf!==false?' selected':''}>Hidup</option><option value="0"${c.mf===false?' selected':''}>Mati</option></select>
+  <label class="mu">Mode baca manga</label><select id="s-rm"><option value="strip"${c.rm!=='page'?' selected':''}>Gulir panjang (webtoon)</option><option value="page"${c.rm==='page'?' selected':''}>Halaman per halaman (ketuk)</option></select>
+  <label class="mu">Lanjut otomatis ke chapter berikutnya (mode gulir)</label><select id="s-ac"><option value="0"${!c.ac?' selected':''}>Mati</option><option value="1"${c.ac?' selected':''}>Hidup</option></select>
+  <label class="mu">Cadangan data (favorit, riwayat, progres, pengaturan)</label><div class="bar"><button class="btn s" id="s-exp">⬇ Ekspor data</button><label class="btn s" style="cursor:pointer">⬆ Impor data<input type="file" id="s-imp" accept=".json,application/json" hidden></label></div>
   <button class="btn s" id="s-clr">Hapus riwayat tontonan</button><button class="btn s" id="s-clr2">Hapus progres baca manga</button><button class="btn s" id="s-clr3">Hapus semua favorit</button><p class="mu" id="s-ok"></p></div>`;
   const ok=()=>{$('#s-ok').textContent='Tersimpan ✓'};
   $('#s-ml').onchange=e=>{saveCfg({ml:e.target.value});ok()};
   $('#s-an').onchange=e=>{saveCfg({an:e.target.value==='1'});ok()};
   $('#s-ds').onchange=e=>{saveCfg({ds:e.target.value==='1'});ok()};
   $('#s-ip').onchange=e=>{saveCfg({ip:e.target.value==='1'});ok()};
+  $('#s-mf').onchange=e=>{saveCfg({mf:e.target.value==='1'});ok()};
+  $('#s-rm').onchange=e=>{saveCfg({rm:e.target.value});ok()};
+  $('#s-ac').onchange=e=>{saveCfg({ac:e.target.value==='1'});ok()};
+  const KEYS={k:'k',kw:'kw',kf:'kf',kr:'kr'};
+  $('#s-exp').onclick=()=>{
+    const out={app:'kumori',v:1,at:new Date().toISOString()};
+    Object.keys(KEYS).forEach(n=>{try{out[n]=JSON.parse(localStorage.getItem(n))||{}}catch{out[n]={}}});
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(out)],{type:'application/json'}));
+    a.download='kumori-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    $('#s-ok').textContent='Data diekspor ✓';
+  };
+  $('#s-imp').onchange=async e=>{
+    const f=e.target.files[0];if(!f)return;
+    try{
+      const d=JSON.parse(await f.text());
+      if(!d||d.app!=='kumori')throw Error('Bukan file cadangan Kumori.');
+      let n=0;
+      for(const key of ['kw','kf','kr']){
+        const cur=(()=>{try{return JSON.parse(localStorage.getItem(key))||{}}catch{return{}}})(),inc=d[key]||{};
+        Object.entries(inc).forEach(([id,x])=>{if(x&&typeof x==='object'&&(!cur[id]||(x.ts||0)>(cur[id].ts||0))){cur[id]=x;n++}});
+        localStorage.setItem(key,JSON.stringify(cur));
+      }
+      if(d.k&&typeof d.k==='object')localStorage.setItem('k',JSON.stringify({...d.k,...cfg()}));
+      $('#s-ok').textContent='Data diimpor ✓ ('+n+' item digabung)';
+    }catch(x){$('#s-ok').textContent='Gagal impor: '+x.message}
+    e.target.value='';
+  };
   $('#s-clr').onclick=()=>{try{localStorage.removeItem('kw')}catch{}$('#s-ok').textContent='Riwayat dihapus ✓'};
   $('#s-clr2').onclick=()=>{try{localStorage.removeItem('kr')}catch{}$('#s-ok').textContent='Progres baca dihapus ✓'};
   $('#s-clr3').onclick=()=>{if(!confirm('Hapus semua favorit?'))return;try{localStorage.removeItem('kf')}catch{}$('#s-ok').textContent='Favorit dihapus ✓'};
@@ -814,7 +946,7 @@ async function route(){
   if(hls){try{hls.destroy()}catch{}hls=null}
   if(window._kd){window.removeEventListener('keydown',window._kd);window._kd=null}
   if(window._sc){window.removeEventListener('scroll',window._sc);window._sc=null}
-  window.nextEp=null;
+  window.nextEp=null;window.vidKey=null;
   setNav();window.scrollTo(0,0);
   try{
     switch(p[0]){
