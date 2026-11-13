@@ -138,8 +138,8 @@ const hist=()=>{try{return JSON.parse(localStorage.getItem('kw'))||{}}catch{retu
 const SY=t=>`<div class="sec"><h3 class="sh">Sinopsis</h3><div class="sy c3">${t||'<span class="mu">Sinopsis belum tersedia.</span>'}</div><button class="lk">Baca selengkapnya</button></div>`;
 document.addEventListener('click',e=>{const b=e.target.closest('.lk');if(b){const o=b.previousElementSibling.classList.toggle('c3');b.textContent=o?'Baca selengkapnya':'Tutup'}});
 const SK=`<div class="g">${'<div class="c"><div class="im sk"></div><div class="nm sk" style="height:14px;margin-top:8px"></div></div>'.repeat(12)}</div>`;
-const NAV_A=[['#/','🏠','Beranda',h=>h==='#/'||/^#\/(a|s)(\/|$)/.test(h)],['#/o/ongoing','📺','Ongoing',h=>/^#\/o\/(ongoing|completed)/.test(h)],['#/o/schedule','📅','Jadwal',h=>/^#\/o\/schedule/.test(h)],['#/o/list','📚','Daftar',h=>/^#\/o\/(list|d|e)(\/|$)/.test(h)],['#/o/genres','🏷️','Genre',h=>/^#\/o\/(genres|g)(\/|$)/.test(h)]];
-const NAV_M=[['#/m','🏠','Beranda',h=>h==='#/m'||/^#\/ms\//.test(h)||(/^#\/m\//.test(h)&&!/^#\/m\/t\//.test(h))],['#/m/t/pop','🔥','Populer',h=>/^#\/m\/t\/pop/.test(h)],['#/m/t/ongoing','🟢','Ongoing',h=>/^#\/m\/t\/ongoing/.test(h)],['#/m/t/done','✅','Tamat',h=>/^#\/m\/t\/done/.test(h)]];
+const NAV_A=[['#/','🏠','Beranda',h=>h==='#/'||/^#\/o\/ongoing/.test(h)||/^#\/(a|s)(\/|$)/.test(h)],['#/o/completed','✅','Tamat',h=>/^#\/o\/completed/.test(h)],['#/o/schedule','📅','Jadwal',h=>/^#\/o\/schedule/.test(h)],['#/o/list','📚','Daftar',h=>/^#\/o\/(list|d|e)(\/|$)/.test(h)],['#/o/genres','🏷️','Genre',h=>/^#\/o\/(genres|g)(\/|$)/.test(h)]];
+const NAV_M=[['#/m','🏠','Beranda',h=>h==='#/m'||/^#\/ms\//.test(h)||(/^#\/m\//.test(h)&&!/^#\/m\/t\//.test(h))],['#/m/t/pop','🔥','Populer',h=>/^#\/m\/t\/pop/.test(h)],['#/m/t/done','✅','Tamat',h=>/^#\/m\/t\/done/.test(h)]];
 const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#si').placeholder=mg?'Cari manga…':'Cari anime…';document.body.classList.toggle('rd-mode',/^#\/r\//.test(h));const NV=mg?NAV_M:NAV_A;$('#bn').style.gridTemplateColumns='repeat('+NV.length+',1fr)';$('#bn').innerHTML=NV.map(([href,ic,nm,t])=>`<a href="${href}"${t(h)?' class="on" aria-current="page"':''}><span>${nm}</span></a>`).join('')};
 function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,6);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/a/${id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${x.e}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
 // Sanka proxy: API upstream dipanggil dari Vercel Function agar tidak terkena CORS.
@@ -474,10 +474,41 @@ const FL='id title{romaji english} coverImage{large}averageScore nextAiringEpiso
 const section=(t,l)=>l&&l.length?`<h2>${t}</h2>${grid(l)}`:'';
 
 /* ===== ANIME (AniList) ===== */
+/* Beranda anime = Update Terbaru (gabungan Beranda + Ongoing), urut dari rilis paling baru */
+const BLN={jan:0,feb:1,mar:2,apr:3,mei:4,may:4,jun:5,jul:6,agu:7,agt:7,aug:7,sep:8,okt:9,oct:9,nov:10,des:11,dec:11};
+function relDateVal(t){
+  const m=String(t||'').toLowerCase().match(/(\d{1,2})\s+([a-z]{3})/);if(!m||!(m[2] in BLN))return 0;
+  const now=new Date();let y=now.getFullYear();let d=new Date(y,BLN[m[2]],+m[1]);
+  if(d.getTime()>now.getTime()+864e5*2)d=new Date(y-1,BLN[m[2]],+m[1]);
+  return d.getTime();
+}
+const uniqAnime=l=>[...new Map(l.filter(x=>x&&x.title&&x.animeId&&x.poster).map(x=>[x.animeId,x])).values()];
+const sortLatest=l=>l.map((x,i)=>[x,i]).sort((a,b)=>(relDateVal(b[0].latestReleaseDate||b[0].lastReleaseDate)-relDateVal(a[0].latestReleaseDate||a[0].lastReleaseDate))||(a[1]-b[1])).map(x=>x[0]);
 async function vHome(){
   app.innerHTML=SK;
-  const d=await gql(`query{t:Page(perPage:18){media(type:ANIME,sort:TRENDING_DESC,isAdult:false){${FL}}}r:Page(perPage:18){media(type:ANIME,status:RELEASING,sort:POPULARITY_DESC,isAdult:false){${FL}}}p:Page(perPage:18){media(type:ANIME,sort:POPULARITY_DESC,isAdult:false){${FL}}}}`);
-  app.innerHTML=contWatch()+section('🔥 Sedang Trending',d.t.media)+section('📺 Sedang Tayang',d.r.media)+section('⭐ Terpopuler',d.p.media);
+  let list=[],pg=1,live=false,more=true;
+  const load=async p=>{
+    try{
+      const d=await sankaFetch('/anime/ongoing-anime'+(p>1?'?page='+p:''));
+      const l=uniqAnime(walkObjects(d));if(l.length){live=true;return l}
+    }catch{}
+    return null;
+  };
+  let first=await load(1);
+  if(!first){const o=await otakuData();first=uniqAnime((o.ongoing&&o.ongoing.animeList)||[]);more=false}
+  list=first;
+  const draw=()=>{
+    const seen=sortLatest(list);
+    app.innerHTML=contWatch()+`<div class="ota-head"><h2>🆕 Update Terbaru</h2><span class="mu">Otakudesu • ${live?'live':'data tersimpan'} • urut rilis terbaru • WIB</span></div>`+otaGrid(seen)+(more&&live?'<div class="pg"><button class="btn" id="amore">Muat lebih banyak</button></div>':'');
+    const b=$('#amore');if(b)b.onclick=async()=>{
+      b.disabled=true;b.textContent='Memuat…';
+      const l=await load(pg+1);
+      if(!l){more=false}else{pg++;const ids=new Set(list.map(x=>x.animeId));const nw=l.filter(x=>!ids.has(x.animeId));if(!nw.length)more=false;list=list.concat(nw)}
+      if(location.hash==='#/'||location.hash==='')draw();
+    };
+    enrichAiring();
+  };
+  draw();
 }
 async function vSearch(q){
   app.innerHTML=SK;
@@ -560,7 +591,7 @@ async function vOtaList(kind,pg){
     l=[...new Map(walkObjects(d).filter(x=>x.title&&x.animeId&&x.poster).map(x=>[x.animeId,x])).values()];live=l.length>0;
   }catch{}
   if(!live&&pg===1){const o=await otakuData();l=(o[kind]&&o[kind].animeList)||[]}
-  app.innerHTML=`<div class="tabs"><a href="#/o/ongoing"${kind==='ongoing'?' class="on"':''}>Ongoing</a><a href="#/o/completed"${kind==='completed'?' class="on"':''}>Complete</a></div><div class="ota-head"><h2>${names[kind]}</h2><span class="mu">Otakudesu • ${live?'live, hal. '+pg:'data tersimpan'}</span></div>`+otaGrid(l)+`<div class="pg">${pg>1?`<a class="btn s" href="#/o/${kind}/${pg-1}">← Sebelumnya</a>`:''}${l.length&&(live||pg>1)?`<a class="btn" href="#/o/${kind}/${pg+1}">Berikutnya →</a>`:''}</div>`;
+  app.innerHTML=`<div class="ota-head"><h2>${names[kind]}</h2><span class="mu">Otakudesu • ${live?'live, hal. '+pg:'data tersimpan'}</span></div>`+otaGrid(l)+`<div class="pg">${pg>1?`<a class="btn s" href="#/o/${kind}/${pg-1}">← Sebelumnya</a>`:''}${l.length&&(live||pg>1)?`<a class="btn" href="#/o/${kind}/${pg+1}">Berikutnya →</a>`:''}</div>`;
   if(kind==='ongoing')enrichAiring();
 }
 async function vOtaAll(){
@@ -723,37 +754,44 @@ const mTabs=k=>'';
 const mQ=(k,pg)=>`/manga?limit=24&offset=${(pg-1)*24}&includes[]=cover_art${mLangs().map(l=>'&availableTranslatedLanguage[]='+l).join('')}&hasAvailableChapters=true${MR}${MK[k].q}`;
 const MTYPE={ko:'Manhwa',ja:'Manga',zh:'Manhua','zh-hk':'Manhua'};
 const MFILT=[['','Semua'],['ko','Manhwa'],['ja','Manga'],['zh','Manhua']];
-const mHnew=f=>({f:f||'',off:0,li:0,list:[],seen:new Set(),more:true});
+const mHnew=f=>{const st={};mLangs().forEach(l=>st[l]={off:0,more:true});return{f:f||'',st,list:[],seen:new Set(),more:true}};
 let mH=mHnew('');
 async function mdLatestBatch(){
-  const langs=mLangs(),L=langs[Math.min(mH.li,langs.length-1)];
-  const j=await mdFetch(`/chapter?limit=100&offset=${mH.off}&translatedLanguage[]=${L}&order[readableAt]=desc&includeFutureUpdates=0&includeEmptyPages=0&includeExternalUrl=0&contentRating[]=safe&contentRating[]=suggestive&includes[]=manga${mH.f?'&originalLanguage[]='+mH.f:''}`);
-  mH.off+=100;
-  const more=mH.off<(j.total||0)&&j.data.length>0;
-  if(!more&&mH.li<langs.length-1){mH.li++;mH.off=0;mH.more=true}else mH.more=more;
-  const ents=[];
-  for(const c of j.data){
-    const r=(c.relationships||[]).find(x=>x.type==='manga');
-    if(!r||mH.seen.has(r.id))continue;mH.seen.add(r.id);
+  const act=Object.keys(mH.st).filter(l=>mH.st[l].more);
+  if(!act.length){mH.more=false;return}
+  /* ambil semua bahasa sekaligus lalu urutkan berdasarkan waktu rilis, supaya tidak tercampur per bahasa */
+  const res=await Promise.all(act.map(async L=>{
+    const o=mH.st[L].off;
+    const j=await mdFetch(`/chapter?limit=100&offset=${o}&translatedLanguage[]=${L}&order[readableAt]=desc&includeFutureUpdates=0&includeEmptyPages=0&includeExternalUrl=0&contentRating[]=safe&contentRating[]=suggestive&includes[]=manga${mH.f?'&originalLanguage[]='+mH.f:''}`);
+    mH.st[L].off=o+100;mH.st[L].more=mH.st[L].off<(j.total||0)&&j.data.length>0;
+    return [L,j.data];
+  }));
+  mH.more=Object.values(mH.st).some(x=>x.more);
+  const now=Math.floor(Date.now()/1000);let ents=[];
+  for(const [L,data] of res)for(const c of data){
+    const r=(c.relationships||[]).find(x=>x.type==='manga');if(!r)continue;
     const a=c.attributes;
-    ents.push({mid:r.id,ch:c.id,num:a.chapter,lc:L,at:Math.floor(new Date(a.readableAt||a.publishAt||a.createdAt).getTime()/1000)||0,lang:r.attributes&&r.attributes.originalLanguage});
+    const at=Math.floor(new Date(a.readableAt||a.publishAt||a.createdAt).getTime()/1000)||0;
+    if(at>now+300)continue;
+    ents.push({mid:r.id,ch:c.id,num:a.chapter,lc:L,at,lang:r.attributes&&r.attributes.originalLanguage});
   }
-  const use=ents.slice(0,60);
+  ents.sort((x,y)=>y.at-x.at);
+  const use=[];
+  for(const e of ents){if(mH.seen.has(e.mid))continue;mH.seen.add(e.mid);use.push(e);if(use.length>=60)break}
   if(!use.length)return;
   const mj=await mdFetch('/manga?limit='+use.length+'&'+use.map(e=>'ids[]='+e.mid).join('&')+'&includes[]=cover_art'+MR);
   const mm={};mj.data.forEach(m=>mm[m.id]=m);
   use.forEach(e=>{if(mm[e.mid])mH.list.push({...e,m:mm[e.mid]})});
+  mH.list.sort((x,y)=>y.at-x.at);
 }
 async function mdFill(){
-  const langs=mLangs();
   await mdLatestBatch();
-  if(mH.list.length<24&&langs.length>1&&mH.li===0){mH.li=1;mH.off=0;mH.more=true}
-  let g=0;while(mH.list.length<24&&mH.more&&g++<2)await mdLatestBatch();
+  let g=0;while(mH.list.length<24&&mH.more&&g++<3)await mdLatestBatch();
 }
 const mLatestCard=e=>{const t=mT(e.m),ty=MTYPE[e.lang]||'';return `<div class="cw"><a class="c" href="#/m/${E(e.mid)}"><div class="im">${mImg(mCover(e.m),t)}${ty?`<span class="bd">${ty}</span>`:''}${e.lc&&e.lc!==mLang()?'<span class="bd" style="left:auto;right:6px">EN</span>':''}<span class="bd b2">${e.num!=null?'Ch. '+E(e.num):'Oneshot'}</span></div><div class="nm">${E(t)}</div></a><a class="rl" href="#/r/${E(e.ch)}">${e.at?E(e.at>Math.floor(Date.now()/1000)-60?'Baru saja':rel(e.at))+' • '+E(jam(e.at))+' WIB':'Baca chapter'}</a></div>`};
 function mHomeDraw(extra){
   const L=mLang();
-  app.innerHTML=contRead()+`<h2>🆕 Rilis Terbaru</h2><div class="mu">Chapter yang baru rilis • Bahasa: ${L==='id'?'Indonesia'+(mLangs().length>1?' (+ English bila sedikit)':''):'English'} • waktu WIB</div>
+  app.innerHTML=contRead()+`<h2>🆕 Update Terbaru</h2><div class="mu">Chapter yang baru rilis • Bahasa: ${L==='id'?'Indonesia'+(mLangs().length>1?' (+ English bila sedikit)':''):'English'} • waktu WIB</div>
   <div class="chips" id="mf" style="margin-top:10px">${MFILT.map(([v,n])=>`<button class="chip${v===mH.f?' on':''}" data-f="${v}">${n}</button>`).join('')}</div>
   <div id="mh">${extra||(mH.list.length?`<div class="g">${mH.list.map(mLatestCard).join('')}</div>`:'<div class="msg">Belum ada rilisan baru untuk filter ini. Coba filter lain atau ganti bahasa di Pengaturan (⚙).</div>')}</div>
   ${mH.more&&mH.list.length&&!extra?'<div class="pg"><button class="btn" id="mmore">Muat lebih banyak</button></div>':''}`;
@@ -772,6 +810,7 @@ async function vMangaHome(){
   mHomeDraw();
 }
 async function vMangaList(k,pg){
+  if(k==='ongoing'){location.replace('#/m');return}
   if(!MK[k])k='pop';pg=Math.max(1,+pg||1);
   app.innerHTML=SK;
   const j=await mdFetch(mQ(k,pg));
@@ -960,7 +999,7 @@ async function route(){
       case'set':return vSettings();
       case'o':
         switch(p[1]){
-          case'ongoing':return await vOtaList('ongoing',p[2]);
+          case'ongoing':location.replace('#/');return;
           case'completed':return await vOtaList('completed',p[2]);
           case'list':return await vOtaAll();
           case'genres':return await vOtaGenres();
