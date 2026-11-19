@@ -19,6 +19,19 @@ Kumori adalah situs katalog anime dan manga ringan berbasis HTML/JavaScript yang
 - Jika Sanka mengubah endpoint atau bentuk respons, adapter di `index.html` (`SRC`, `sankaAutoEpisode`) dan proxy `api/sanka.js` perlu disesuaikan.
 - URL video eksternal hanya dapat diputar jika server sumber mengizinkan embed/CORS dan URL masih aktif. Sebagian server mungkin memerlukan iframe atau mungkin menolak pemutaran.
 
+## Otakudesu: data langsung dari Sanka
+- Daftar, detail, genre, jadwal, dan halaman episode Otakudesu kini diambil langsung dari Sanka lebih dulu; folder `data/` hanya cadangan bila Sanka tidak bisa dihubungi (file statis tidak lagi dimuat kecuali diperlukan).
+- Halaman episode Otakudesu yang gagal (atau semua servernya mati saat diputar) otomatis mencoba Samehadaku.
+- Daftar server dan URL video di-cache sementara (10 menit / 3 menit) di `sessionStorage`, dan di-refresh otomatis untuk server yang sebelumnya gagal.
+- `api/sanka.js` memiliki batas waktu total ±8,5 detik; bila terlampaui, proxy membalas HTTP 504 `sanka_timeout`. Path cadangan `/anime/samehadaku/...` hanya dicoba bila path utama gagal.
+- Ikon PWA (`icon-192.png`, `icon-512.png`, `icon-maskable-512.png`) sudah disertakan; ganti dengan logo sendiri bila mau.
+
+## Auto ganti server
+- Saat video gagal dimuat, Kumori otomatis mencoba server berikutnya pada sumber yang sama, lalu lanjut ke sumber lain (Server 1 → Server 2 → YouTube) pada mode Otomatis.
+- Video yang sudah berjalan tetapi error atau macet lebih dari 20 detik juga otomatis dipindah ke server lain (dapat dimatikan di Pengaturan → Ganti server otomatis).
+- Server yang gagal ditandai dicoret; server yang terakhir berhasil diingat dan dicoba lebih dulu di episode berikutnya.
+- Tombol "Video bermasalah? Ganti server" tersedia untuk memindah manual. Untuk server berbentuk iframe, isi halaman lintas-domain tidak bisa dibaca browser, sehingga hanya gagal-muat/timeout yang terdeteksi otomatis; layar hitam di dalam iframe perlu diganti manual lewat tombol tersebut.
+
 ## YouTube resmi (fallback)
 Fitur pencarian video YouTube membutuhkan `YOUTUBE_API_KEY` di Vercel Environment Variables. Tanpa key, fallback YouTube tidak akan berfungsi; streaming Sanka tetap dicoba lebih dahulu.
 
