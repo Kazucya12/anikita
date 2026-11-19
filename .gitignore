@@ -1,0 +1,7 @@
+node_modules
+.vercel
+.DS_Store
+
+# pembungkus Android (dibuat ulang oleh CI)
+android-wrapper/node_modules/
+android-wrapper/android/
