@@ -2,8 +2,11 @@
 // Browser memanggil /api/sanka?p=/samehadaku/anime/ao-ashi-s2, lalu Vercel meneruskannya.
 // Namespace: /anime/... (Otakudesu), /samehadaku/... (Samehadaku).
 // Jika Sanka butuh API key, isi Environment Variable SANKA_APIKEY di Vercel.
+// Setiap permintaan dibatasi waktu (anggaran total ~8,5 detik) supaya fungsi tidak menggantung.
 const HOST = 'https://www.sankavollerei.web.id';
 const UA = 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36';
+const BUDGET_MS = 8500;
+const STEP_MS = 4500;
 
 // Beberapa profil header; bila Sanka membalas 403/non-JSON, dicoba profil berikutnya.
 const PROFILES = [
@@ -18,13 +21,31 @@ const PROFILES = [
   { accept: '*/*', 'user-agent': 'axios/1.7.2' }
 ];
 
-async function pull(path, key) {
+class Timeout extends Error {}
+
+async function getText(url, headers, ms) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  try {
+    const r = await fetch(url, { headers, signal: ac.signal });
+    const body = await r.text();
+    return { r, body };
+  } catch (e) {
+    if (e && e.name === 'AbortError') throw new Timeout('timeout');
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function pull(path, key, deadline) {
   let url = HOST + path;
   if (key) url += (path.includes('?') ? '&' : '?') + 'apikey=' + encodeURIComponent(key);
   let out = null;
   for (const headers of PROFILES) {
-    const r = await fetch(url, { headers });
-    const body = await r.text();
+    const left = deadline - Date.now();
+    if (left < 800) { if (out) break; throw new Timeout('timeout'); }
+    const { r, body } = await getText(url, headers, Math.min(STEP_MS, left));
     let json = true;
     try { JSON.parse(body); } catch (e) { json = false; }
     out = { r, body, json };
@@ -51,12 +72,16 @@ module.exports = async (req, res) => {
     return;
   }
   const key = process.env.SANKA_APIKEY;
-  // Samehadaku bisa berada di /samehadaku/... atau /anime/samehadaku/...; coba keduanya.
+  const deadline = Date.now() + BUDGET_MS;
+  // Samehadaku bisa berada di /samehadaku/... atau /anime/samehadaku/...; path kedua hanya dicoba bila yang pertama gagal.
   const paths = p.startsWith('/samehadaku/') ? [p, '/anime' + p] : [p];
   try {
     let last = null;
     for (const path of paths) {
-      const out = await pull(path, key);
+      if (last && deadline - Date.now() < 800) break;
+      let out;
+      try { out = await pull(path, key, deadline); }
+      catch (e) { if (e instanceof Timeout && last) break; throw e; }
       last = { ...out, path };
       if (out.json && out.r.ok) break;
     }
@@ -74,6 +99,10 @@ module.exports = async (req, res) => {
     res.setHeader('cache-control', r.ok ? 's-maxage=60, stale-while-revalidate=120' : 'no-store');
     res.status(r.status).send(body);
   } catch (e) {
+    if (e instanceof Timeout) {
+      res.status(504).json({ error: 'sanka_timeout', message: 'Sanka tidak merespons tepat waktu. Coba lagi sebentar.' });
+      return;
+    }
     res.status(502).json({ error: 'sanka_upstream_unreachable', message: 'Tidak dapat menghubungi Sanka API.' });
   }
 };
