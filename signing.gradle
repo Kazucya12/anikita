@@ -1,0 +1,17 @@
+
+android {
+    signingConfigs {
+        release {
+            storeFile file("../../kumori.keystore")
+            storePassword "kumori123"
+            keyAlias "kumori"
+            keyPassword "kumori123"
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+}
