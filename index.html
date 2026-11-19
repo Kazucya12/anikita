@@ -252,8 +252,22 @@ async function otaAutoEpisode(titles,ep){
   if(!hit)throw Error('Episode '+ep+' belum tersedia.');
   return String(hit.episodeId);
 }
-const sankaEpisode=(slug,src='sh')=>sankaFetch(SRC[src].ep+encodeURIComponent(slug));
-const sankaServer=(id,src='sh')=>sankaFetch(SRC[src].sv+encodeURIComponent(id));
+/* Cache hasil Sanka: daftar server 10 menit, URL video 3 menit (memori + sessionStorage). */
+const memoMap=new Map(),badSv=new Set();
+const memoDrop=k=>{memoMap.delete(k);try{sessionStorage.removeItem('kc:'+k)}catch{}};
+async function memo(key,ttl,fn,fresh){
+  const now=Date.now();
+  if(!fresh){
+    const h=memoMap.get(key);if(h&&now-h.t<ttl)return h.v;
+    try{const j=JSON.parse(sessionStorage.getItem('kc:'+key)||'null');if(j&&now-j.t<ttl){memoMap.set(key,j);return j.v}}catch{}
+  }
+  const v=await fn(),e={t:now,v};memoMap.set(key,e);
+  try{sessionStorage.setItem('kc:'+key,JSON.stringify(e))}
+  catch{try{Object.keys(sessionStorage).filter(k=>k.startsWith('kc:')).forEach(k=>sessionStorage.removeItem(k))}catch{}}
+  return v;
+}
+const sankaEpisode=(slug,src='sh',fresh)=>memo(src+':e:'+slug,600000,()=>sankaFetch(SRC[src].ep+encodeURIComponent(slug)),fresh);
+const sankaServer=(id,src='sh',fresh)=>memo(src+':s:'+id,180000,()=>sankaFetch(SRC[src].sv+encodeURIComponent(id)),fresh);
 function walkObjects(value,out=[]){
   if(!value||typeof value!=='object')return out;
   if(Array.isArray(value)){value.forEach(x=>walkObjects(x,out));return out;}
@@ -314,7 +328,7 @@ async function playSankaEpisode(slug,title,src='sh'){
     const setSt=t=>{const el=document.getElementById('sanka-status');if(el)el.textContent=t};
     const failed=new Set();let cur=-1,seq=0;
     const mark=()=>{if(!bar)return;bar.querySelectorAll('[data-sanka-server]').forEach(bt=>{const id=bt.dataset.sankaServer;bt.classList.toggle('on',!!list[cur]&&list[cur].id===id);bt.classList.toggle('bad',failed.has(id))})};
-    const urlOf=async sv=>{if(sv.url)return sv.url;const d=await sankaServer(sv.id,src),u=findVideo(d);if(!u)throw Error('tidak ada URL video');return u};
+    const urlOf=async sv=>{if(sv.url)return sv.url;const d=await sankaServer(sv.id,src,badSv.has(src+sv.id)),u=findVideo(d);if(!u)throw Error('tidak ada URL video');return u};
     const attempt=async(i,tk)=>{
       cur=i;const sv=list[i];mark();setSt('Memuat server '+sv.name+'…');
       try{
@@ -322,19 +336,19 @@ async function playSankaEpisode(slug,title,src='sh'){
         if(tk!==seq||box._stamp!==stamp)return true;
         const ok=await renderSankaSource(box,u,why=>{
           if(tk!==seq||box._stamp!==stamp)return;
-          failed.add(sv.id);mark();
+          failed.add(sv.id);badSv.add(src+sv.id);mark();
           if(cfg().as===false){setSt(sv.name+' bermasalah ('+why+'). Pilih server lain.');return}
           setSt(sv.name+' bermasalah ('+why+'), pindah server…');
           run(i,false);
         });
         if(tk!==seq||box._stamp!==stamp)return true;
         if(!ok)throw Error('video gagal dimuat');
-        prefSet(sv.name);mark();
+        badSv.delete(src+sv.id);prefSet(sv.name);mark();
         setSt('Server: '+sv.name+(failed.size?' • '+failed.size+' server dilewati':''));
         return true;
       }catch(e){
         if(tk!==seq||box._stamp!==stamp)return true;
-        failed.add(sv.id);mark();return false;
+        failed.add(sv.id);badSv.add(src+sv.id);mark();return false;
       }
     };
     // Coba server satu per satu mulai setelah index "from" (melingkar), lewati yang sudah gagal.
@@ -370,7 +384,7 @@ async function playSankaEpisode(slug,title,src='sh'){
       };
     }
     return true;
-  }catch(e){if(box._stamp!==stamp)return false;box.innerHTML=`<div class="msg">Tidak bisa memuat video.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka sumber ↗</a></div>`;return false;}
+  }catch(e){memoDrop(src+':e:'+slug);if(box._stamp!==stamp)return false;box.innerHTML=`<div class="msg">Tidak bisa memuat video.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka sumber ↗</a></div>`;return false;}
 }
 const mmss=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
 function trackVideo(v){
@@ -471,18 +485,23 @@ function showDownloads(box,data){
 }
 
 let otakuCache=null;
+// Data statis hanya cadangan bila Sanka tidak bisa dihubungi; tidak melempar error bila file tidak ada.
 async function otakuData(){
   if(otakuCache)return otakuCache;
-  const [r,r2,r3]=await Promise.all([fetch('/data/otakudesu.json'),fetch('/data/otakudesu-detail.json'),fetch('/data/otakudesu-genres.json')]);
-  if(!r.ok)throw Error('Data katalog tidak bisa dimuat ('+r.status+')');
-  otakuCache=await r.json();
-  otakuCache.detail=r2.ok?await r2.json():{};
-  otakuCache.genres=r3.ok?await r3.json():[];
-  return otakuCache;
+  let base={},detail={},genres=[];
+  try{
+    const [r,r2,r3]=await Promise.all([fetch('/data/otakudesu.json'),fetch('/data/otakudesu-detail.json'),fetch('/data/otakudesu-genres.json')]);
+    if(r.ok)base=await r.json();
+    if(r2.ok)detail=await r2.json();
+    if(r3.ok)genres=await r3.json();
+  }catch{}
+  const o=Object.assign(base,{detail,genres});
+  if(base.ongoing)otakuCache=o;
+  return o;
 }
 const otaMem={};
 const otaSess=()=>{try{return JSON.parse(sessionStorage.getItem('kd'))||{}}catch{return{}}};
-function rememberOta(id,d){try{otaMem[id]=d;const m=otaSess();delete m[id];m[id]={episodeList:d.episodeList,title:d.title,poster:d.poster};const ks=Object.keys(m);while(ks.length>6)delete m[ks.shift()];sessionStorage.setItem('kd',JSON.stringify(m))}catch{}}
+function rememberOta(id,d){try{otaMem[id]=d;const m=otaSess();delete m[id];m[id]={episodeList:d.episodeList,title:d.title,poster:d.poster,japanese:d.japanese};const ks=Object.keys(m);while(ks.length>6)delete m[ks.shift()];sessionStorage.setItem('kd',JSON.stringify(m))}catch{}}
 function findOtaByEp(ep){const pool={...otaSess(),...otaMem};for(const id in pool){const d=pool[id];if(d&&(d.episodeList||[]).some(e=>e.episodeId===ep))return{id,d}}return null}
 function otaGo(id,eps){
   if(!eps.length)return '';
@@ -741,14 +760,14 @@ async function vOtaList(kind,pg){
   if(kind==='ongoing')enrichAiring();
 }
 async function vOtaAll(){
-  app.innerHTML=SK;const o=await otakuData();
+  app.innerHTML=SK;
   let flat=null;
   try{
     const d=await sankaFetch('/anime/unlimited');
     const l=walkObjects(d).filter(x=>x.title&&x.animeId);
     if(l.length)flat=[...new Map(l.map(x=>[x.animeId,x])).values()];
   }catch{}
-  if(!flat)flat=(o.animeList||[]).slice();
+  if(!flat){const o=await otakuData();flat=(o.animeList||[]).slice()}
   const lt=x=>{const c=String(x.title||'').trim().charAt(0).toUpperCase();return /[A-Z]/.test(c)?c:'#'};
   const letters=[...new Set(flat.map(lt))].sort((a,b)=>a==='#'?-1:b==='#'?1:a.localeCompare(b));
   const hasSc=flat.some(x=>+x.score),cards=flat.some(x=>x.poster);
@@ -781,8 +800,11 @@ async function vOtaAll(){
   draw();
 }
 async function vOtaGenres(){
-  app.innerHTML=SK;const o=await otakuData();
-  app.innerHTML=`<h2>Genre</h2><div class="chips">${(o.genres||[]).map(g=>`<a class="chip" href="#/o/g/${enc(g.genreId)}">${E(g.title)}</a>`).join('')}</div>`;
+  app.innerHTML=SK;
+  let gl=[];
+  try{gl=[...new Map(walkObjects(await sankaFetch('/anime/genre')).filter(x=>x.genreId&&x.title).map(x=>[x.genreId,x])).values()]}catch{}
+  if(!gl.length){const o=await otakuData();gl=o.genres||[]}
+  app.innerHTML=`<h2>Genre</h2><div class="chips">${gl.map(g=>`<a class="chip" href="#/o/g/${enc(g.genreId)}">${E(g.title)}</a>`).join('')}</div>`;
 }
 async function vOtaGenre(id,page){
   app.innerHTML=SK;page=+page||1;
@@ -817,8 +839,9 @@ async function vJadwal(){
 async function vOtaSchedule(){
   try{return await vJadwal()}catch(e){console.warn('jadwal AniList gagal',e)}
   app.innerHTML=SK;
-  const r=await fetch('/data/otakudesu-schedule.json');if(!r.ok)throw Error('Jadwal tidak bisa dimuat ('+r.status+')');
-  const s=await r.json();
+  let s=[];
+  try{s=walkObjects(await sankaFetch('/anime/schedule')).filter(x=>x.day&&Array.isArray(x.anime_list)&&x.anime_list.length)}catch{}
+  if(!s.length){const r=await fetch('/data/otakudesu-schedule.json');if(!r.ok)throw Error('Jadwal tidak bisa dimuat ('+r.status+')');s=await r.json()}
   const hari=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date().getDay()];
   let cur=s.some(x=>x.day===hari)?hari:s[0].day;
   const draw=()=>{
@@ -831,12 +854,11 @@ async function vOtaSchedule(){
   draw();
 }
 async function vOtaDetail(id){
-  app.innerHTML=SK;const o=await otakuData();
-  let d=o.detail[id];
-  if(!d){
-    const raw=await sankaFetch('/anime/anime/'+enc(id));
-    d=walkObjects(raw).find(x=>x.title&&(x.episodeList||x.poster))||raw;
-  }
+  app.innerHTML=SK;
+  let d=null,liveErr=null;
+  try{const raw=await sankaFetch('/anime/anime/'+enc(id));d=walkObjects(raw).find(x=>x.title&&(x.episodeList||x.poster))||null}catch(e){liveErr=e}
+  if(!d||!d.episodeList){const o=await otakuData();d=o.detail[id]||d}
+  if(!d)throw liveErr||Error('Detail anime tidak ditemukan.');
   rememberOta(id,d);
   const syn=d.synopsis&&Array.isArray(d.synopsis.paragraphs)?d.synopsis.paragraphs.join('<br><br>'):'';
   const eps=(d.episodeList||[]).slice().sort((a,b)=>(+b.eps||0)-(+a.eps||0));
@@ -855,10 +877,15 @@ async function otaDetailAir(d){
   if(r&&r.airingAt&&el)el.innerHTML=`<div class="mu" style="margin:8px 0">⏰ Eps ${r.episode} tayang <b>${E(fullWIB(r.airingAt))}</b> (${E(rel(r.airingAt))})</div>`;
 }
 async function vOtaEp(id){
-  app.innerHTML=SK;const o=await otakuData();
+  app.innerHTML=SK;
   let anime=null,aid=null;
-  for(const k in o.detail){if((o.detail[k].episodeList||[]).some(e=>e.episodeId===id)){anime=o.detail[k];aid=k;break}}
-  if(!anime){const f=findOtaByEp(id);if(f){anime=f.d;aid=f.id}}
+  const f0=findOtaByEp(id);if(f0){anime=f0.d;aid=f0.id}
+  if(!anime){
+    // tebak ID anime dari ID episode, lalu ambil detail langsung dari Sanka
+    const g=id.replace(/-episode-\d+.*$/i,'')+'-sub-indo';
+    try{const d=walkObjects(await sankaFetch('/anime/anime/'+enc(g))).find(x=>x.title&&x.episodeList);if(d&&d.episodeList.some(e=>e.episodeId===id)){anime=d;aid=g;rememberOta(g,d)}}catch{}
+  }
+  if(!anime){const o=await otakuData();for(const k in o.detail){if((o.detail[k].episodeList||[]).some(e=>e.episodeId===id)){anime=o.detail[k];aid=k;break}}}
   const list=anime?anime.episodeList.slice().sort((a,b)=>(+a.eps||0)-(+b.eps||0)):[];
   const i=list.findIndex(e=>e.episodeId===id),cur=list[i];
   const title=cur?cur.title:id.replace(/-sub-indo$/,'').replace(/-/g,' ');
@@ -869,7 +896,21 @@ async function vOtaEp(id){
   ${list.length?`<h2>Episode lain</h2><div class="eo">${list.slice().reverse().map(e=>`<a href="#/o/e/${enc(e.episodeId)}"${e.episodeId===id?' style="border-color:var(--ac)"':''}><b>Episode ${E(e.eps)}</b></a>`).join('')}</div>`:''}`;
   window.nextEp=()=>{if(cfg().an!==false&&next)location.hash='#/o/e/'+enc(next.episodeId)};
   if(anime&&aid&&cur&&+cur.eps>0){const en=+cur.eps,k='o:'+aid,h0=hist()[k]||{};saveHist(k,{t:anime.title,c:anime.poster,e:en,oe:id,pos:h0.pos&&h0.pos.e===en?h0.pos:null});window.vidKey={id:k,ep:en}}
-  await playSankaEpisode(id,title,'ota');
+  // Otakudesu gagal (awal atau semua server mati saat diputar) -> otomatis coba Samehadaku.
+  const epNo=+(cur&&cur.eps)||+((id.match(/-episode-(\d+)/i)||[])[1])||0;
+  const toSh=async why=>{
+    const box=$('#pl');if(!box||!epNo)return false;
+    const bar=document.getElementById('sanka-bar');if(bar)bar.remove();
+    const dl=document.getElementById('dl-box');if(dl)dl.remove();
+    box.innerHTML='<div class="msg">'+E(why)+' Mencoba Samehadaku…</div>';
+    try{
+      const slug=await sankaAutoEpisode([anime&&anime.title,anime&&anime.japanese,title].filter(Boolean),epNo);
+      return await playSankaEpisode(slug,title,'sh');
+    }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat video.<br><small>${E(e.message)}</small></div>`;return false}
+  };
+  const okOta=await playSankaEpisode(id,title,'ota');
+  if(okOta){const b0=$('#pl');if(b0)b0._exhausted=()=>toSh('Semua server Otakudesu gagal.')}
+  else await toSh('Otakudesu gagal.');
 }
 
 
