@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kumori</title>
 <meta name="theme-color" content="#0e0f1a">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kumori">
 <style>
 :root{--bg:#0e0f1a;--b2:#171928;--b3:#20233a;--tx:#eceefb;--mu:#a7acd0;--ac:#ff6b9d;--ac2:#7c5cff}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -128,6 +134,9 @@ body.rd-mode #bn{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
 <script>
 const $=s=>document.querySelector(s),app=$('#app');
+let installEv=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEv=e});
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cfg=()=>{try{return JSON.parse(localStorage.getItem('k'))||{}}catch{return{}}};
 const F='id title{romaji english} synonyms coverImage{large}averageScore episodes status genres seasonYear description nextAiringEpisode{episode airingAt} trailer{id site} externalLinks{url site type} streamingEpisodes{title url site}';
@@ -154,7 +163,7 @@ const SK=`<div class="g">${'<div class="c"><div class="im sk"></div><div class="
 const NAV_A=[['#/','🏠','Beranda',h=>h==='#/'||/^#\/o\/ongoing/.test(h)||/^#\/(a|s)(\/|$)/.test(h)],['#/o/completed','✅','Tamat',h=>/^#\/o\/completed/.test(h)],['#/o/schedule','📅','Jadwal',h=>/^#\/o\/schedule/.test(h)],['#/o/list','📚','Daftar',h=>/^#\/o\/(list|d|e)(\/|$)/.test(h)],['#/o/genres','🏷️','Genre',h=>/^#\/o\/(genres|g)(\/|$)/.test(h)]];
 const NAV_M=[['#/m','🏠','Beranda',h=>h==='#/m'||/^#\/ms\//.test(h)||(/^#\/m\//.test(h)&&!/^#\/m\/t\//.test(h))],['#/m/t/pop','🔥','Populer',h=>/^#\/m\/t\/pop/.test(h)],['#/m/t/done','✅','Tamat',h=>/^#\/m\/t\/done/.test(h)]];
 const setNav=()=>{const h=location.hash||'#/';const mg=/^#\/(m|ms|r)(\/|$)/.test(h);$('#ta').classList.toggle('on',!mg);$('#tm').classList.toggle('on',mg);$('#si').placeholder=mg?'Cari manga…':'Cari anime…';document.body.classList.toggle('rd-mode',/^#\/r\//.test(h));const NV=mg?NAV_M:NAV_A;$('#bn').style.gridTemplateColumns='repeat('+NV.length+',1fr)';$('#bn').innerHTML=NV.map(([href,ic,nm,t])=>`<a href="${href}"${t(h)?' class="on" aria-current="page"':''}><span>${nm}</span></a>`).join('')};
-function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,6);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="#/a/${id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${x.e}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
+function contWatch(){const l=Object.entries(hist()).sort((x,y)=>y[1].ts-x[1].ts).slice(0,6);return l.length?`<h2>▶ Lanjutkan Menonton</h2><div class="hs">${l.map(([id,x])=>`<a class="c" href="${id[0]==='o'&&x.oe?'#/o/e/'+encodeURIComponent(x.oe):'#/a/'+id}"><div class="im" style="background-image:url('${E(x.c)}')"><span class="bd b2">Eps ${E(x.e)}${x.pos&&x.pos.e===x.e?' • '+mmss(x.pos.s):''}</span></div><div class="nm">${E(x.t)}</div></a>`).join('')}</div>`:''}
 // Sanka proxy: API upstream dipanggil dari Vercel Function agar tidak terkena CORS.
 async function sankaFetch(path){
   const r=await fetch('/api/sanka?p='+encodeURIComponent(path));
@@ -280,31 +289,39 @@ async function playSankaEpisode(slug,title,src='sh'){
     showDownloads(box,data);
     const direct=findVideo(data);
     const servers=episodeServerButtons(data);
-    if(direct){
-      renderSankaSource(box,direct);
-      if(servers.length){
-        let bar=document.getElementById('sanka-bar');
-        if(!bar){bar=document.createElement('div');bar.id='sanka-bar';box.parentNode.insertBefore(bar,box.nextSibling)}
-        bar.innerHTML='<div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status">Server lain bila video tidak jalan.</p>';
-        bar.querySelector('#sanka-servers').onclick=async ev=>{
-          const b=ev.target.closest('[data-sanka-server]');if(!b)return;
-          bar.querySelector('#sanka-status').textContent='Memuat server '+b.textContent+'…';
-          try{const d=await sankaServer(b.dataset.sankaServer,src);const u=findVideo(d);
-            if(!u)throw Error('Server tidak mengembalikan URL video yang dikenali.');
-            renderSankaSource(box,u);bar.querySelector('#sanka-status').textContent='Server: '+b.textContent;
-          }catch(e){bar.querySelector('#sanka-status').textContent='Gagal memuat server: '+e.message;}
-        };
-      }
-      return true;
+    if(!direct&&!servers.length)throw Error('Server video tidak ditemukan.');
+    let bar=null;
+    if(servers.length){
+      bar=document.createElement('div');bar.id='sanka-bar';box.parentNode.insertBefore(bar,box.nextSibling);
+      bar.innerHTML='<div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status"></p>';
     }
-    if(!servers.length)throw Error('Server video tidak ditemukan.');
-    box.innerHTML='<div style="padding:16px;width:100%"><b>Pilih server video</b><div class="chips" id="sanka-servers">'+servers.map(x=>`<button class="chip" data-sanka-server="${E(x.id)}">${E(x.name)}</button>`).join('')+'</div><p class="mu" id="sanka-status">Pilih salah satu server untuk memuat video.</p></div>';
-    $('#sanka-servers').onclick=async ev=>{
-      const b=ev.target.closest('[data-sanka-server]');if(!b)return;
-      $('#sanka-status').textContent='Memuat server '+b.textContent+'…';
-      try{const d=await sankaServer(b.dataset.sankaServer,src);const u=findVideo(d);
-        if(!u)throw Error('Server tidak mengembalikan URL video yang dikenali.');renderSankaSource(box,u);
-      }catch(e){$('#sanka-status').textContent='Gagal memuat server: '+e.message;}
+    const setSt=t=>{const el=document.getElementById('sanka-status');if(el)el.textContent=t};
+    const tryServer=async sv=>{
+      setSt('Memuat server '+sv.name+'…');
+      const d=await sankaServer(sv.id,src),u=findVideo(d);
+      if(!u)throw Error('tidak ada URL video');
+      if(!(await renderSankaSource(box,u)))throw Error('video gagal dimuat');
+      setSt('Server: '+sv.name);
+    };
+    let played=false;
+    if(direct){
+      played=await renderSankaSource(box,direct);
+      if(played)setSt(servers.length?'Server lain bila video tidak jalan.':'');
+      else if(servers.length)setSt('Server utama gagal, mencoba server lain…');
+    }
+    if(!played){
+      for(const sv of servers){
+        try{await tryServer(sv);played=true;break}catch{}
+      }
+    }
+    if(!played){
+      if(bar)bar.remove();
+      throw Error('Semua server gagal memuat video.');
+    }
+    if(bar)bar.querySelector('#sanka-servers').onclick=async ev=>{
+      const bt=ev.target.closest('[data-sanka-server]');if(!bt)return;
+      const sv=servers.find(x=>x.id===bt.dataset.sankaServer);
+      try{await tryServer(sv)}catch(e){setSt('Gagal memuat '+sv.name+': '+e.message)}
     };
     return true;
   }catch(e){box.innerHTML=`<div class="msg">Tidak bisa memuat video.<br><small>${E(e.message)}</small><br><br><a class="btn s" target="_blank" rel="noopener" href="${E((src==='sh'&&window.shUrl)||SRC[src].site)}">Buka sumber ↗</a></div>`;return false;}
@@ -318,14 +335,31 @@ function trackVideo(v){
   v.addEventListener('timeupdate',()=>{const n=Date.now();if(n-last<5000)return;last=n;if(v.currentTime>5)saveHist(k.id,{pos:{e:k.ep,s:Math.floor(v.currentTime)}})});
   v.addEventListener('ended',()=>saveHist(k.id,{pos:null}));
 }
-function renderSankaSource(box,url){setTimeout(()=>{const v=box.querySelector('video');if(v)v.onended=()=>window.nextEp&&window.nextEp()});
-  if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
-    box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');hls=new Hls();hls.loadSource(url);hls.attachMedia(v);trackVideo(v);
-  }else if(/\.(mp4|webm|ogg)(\?|$)/i.test(url)){
-    box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');v.src=url;trackVideo(v);
-  }else{
-    box.innerHTML=`<iframe src="${E(url)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
-  }
+function renderSankaSource(box,url){
+  if(hls){try{hls.destroy()}catch{}hls=null}
+  return new Promise(res=>{
+    let tm=0,done=false;
+    const fin=ok=>{if(done)return;done=true;clearTimeout(tm);res(ok)};
+    const watch=v=>{
+      v.onended=()=>window.nextEp&&window.nextEp();
+      v.addEventListener('loadedmetadata',()=>fin(true),{once:true});
+      v.addEventListener('error',()=>fin(false),{once:true});
+      tm=setTimeout(()=>fin(false),25000);
+    };
+    if(/\.(m3u8)(\?|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
+      box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');
+      hls=new Hls();
+      hls.on(Hls.Events.MANIFEST_PARSED,()=>fin(true));
+      hls.on(Hls.Events.ERROR,(e,d)=>{if(d&&d.fatal)fin(false)});
+      hls.loadSource(url);hls.attachMedia(v);trackVideo(v);watch(v);
+    }else if(/\.(mp4|webm|ogg)(\?|$)/i.test(url)){
+      box.innerHTML='<video controls autoplay playsinline></video>';const v=box.querySelector('video');
+      v.src=url;trackVideo(v);watch(v);
+    }else{
+      box.innerHTML=`<iframe src="${E(url)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
+      fin(true);
+    }
+  });
 }
 
 /* ===== DOWNLOAD (360p / 480p / 720p / 1080p) ===== */
@@ -380,6 +414,16 @@ async function otakuData(){
   otakuCache.detail=r2.ok?await r2.json():{};
   otakuCache.genres=r3.ok?await r3.json():[];
   return otakuCache;
+}
+const otaMem={};
+const otaSess=()=>{try{return JSON.parse(sessionStorage.getItem('kd'))||{}}catch{return{}}};
+function rememberOta(id,d){try{otaMem[id]=d;const m=otaSess();delete m[id];m[id]={episodeList:d.episodeList,title:d.title,poster:d.poster};const ks=Object.keys(m);while(ks.length>6)delete m[ks.shift()];sessionStorage.setItem('kd',JSON.stringify(m))}catch{}}
+function findOtaByEp(ep){const pool={...otaSess(),...otaMem};for(const id in pool){const d=pool[id];if(d&&(d.episodeList||[]).some(e=>e.episodeId===ep))return{id,d}}return null}
+function otaGo(id,eps){
+  if(!eps.length)return '';
+  const h=hist()['o:'+id],first=eps[eps.length-1];
+  if(h&&h.oe)return `<a class="btn" href="#/o/e/${encodeURIComponent(h.oe)}">▶ Lanjut Eps ${E(h.e)}${h.pos&&h.pos.e===h.e?' • '+mmss(h.pos.s):''}</a>`;
+  return `<a class="btn" href="#/o/e/${encodeURIComponent(first.episodeId)}">▶ Mulai dari Eps ${E(first.eps)}</a>`;
 }
 const oLink=a=>`href="#/o/d/${encodeURIComponent(a.animeId)}"`;
 
@@ -464,6 +508,21 @@ async function favNews(l){
       });
     }catch{}
   }
+  const O=l.filter(([k])=>k.startsWith('o:')).slice(0,20);
+  O.forEach(([k])=>fresh(k)&&favMark(k,favNewCache[k].txt));
+  const qo=O.filter(([k])=>!fresh(k)).map(([k])=>k);
+  const oneO=async k=>{
+    const id=k.slice(2);let d=null;
+    try{const raw=await sankaFetch('/anime/anime/'+enc(id));d=walkObjects(raw).find(x=>x.title&&(x.episodeList||x.poster))||raw}catch{}
+    if(!d||!d.episodeList){try{const o=await otakuData();d=o.detail[id]||d}catch{}}
+    if(!d||!d.episodeList)return;
+    const latest=Math.max(0,...d.episodeList.map(e=>+e.eps||0));
+    if(!latest)return;
+    const h=hist()[k];
+    const txt=h&&h.e?(latest>h.e?'Eps '+latest+' baru':''):(/ongoing/i.test(String(d.status||''))?'Eps '+latest:'');
+    favNewCache[k]={t:Date.now(),txt};favMark(k,txt);
+  };
+  const pO=Promise.all([0,1,2].map(async()=>{while(qo.length)await oneO(qo.shift())}));
   const L=mLang(),langs=mLangs();
   const one=async k=>{
     const id=k.slice(2);let ch=null;
@@ -481,6 +540,7 @@ async function favNews(l){
   };
   let q=needM.map(([k])=>k);
   await Promise.all([0,1,2].map(async()=>{while(q.length){await one(q.shift())}}));
+  await pO;
 }
 const errBox=(e,retry)=>`<div class="msg">Terjadi kesalahan.<br><small>${E(e&&e.message||e)}</small><br><br><button class="btn" onclick="${retry||'route()'}">Coba lagi</button></div>`;
 const FL='id title{romaji english} coverImage{large}averageScore nextAiringEpisode{episode airingAt}';
@@ -704,13 +764,14 @@ async function vOtaDetail(id){
     const raw=await sankaFetch('/anime/anime/'+enc(id));
     d=walkObjects(raw).find(x=>x.title&&(x.episodeList||x.poster))||raw;
   }
+  rememberOta(id,d);
   const syn=d.synopsis&&Array.isArray(d.synopsis.paragraphs)?d.synopsis.paragraphs.join('<br><br>'):'';
   const eps=(d.episodeList||[]).slice().sort((a,b)=>(+b.eps||0)-(+a.eps||0));
   const info=[['Jepang',d.japanese],['Tipe',d.type],['Status',d.status],['Episode',d.episodes],['Durasi',d.duration],['Tayang',d.aired],['Studio',d.studios],['Skor',d.score]].filter(x=>x[1]);
   app.innerHTML=`<div class="d"><div class="cv" style="background-image:url('${E(d.poster)}')"></div><div class="in"><h2 style="margin-top:0">${E(d.title)}</h2>
   <div class="chips">${(d.genreList||[]).map(g=>`<a class="chip" href="#/o/g/${enc(g.genreId)}">${E(g.title)}</a>`).join('')}</div>
   <div class="dt">${info.map(x=>`<div><span>${E(x[0])}</span><br>${E(x[1])}</div>`).join('')}</div>
-  ${eps.length?`<a class="btn" href="#/o/e/${enc(eps[eps.length-1].episodeId)}">▶ Mulai dari Eps ${E(eps[eps.length-1].eps)}</a>`:''}${favBtn('o:'+id)}</div></div>
+  ${otaGo(id,eps)}${favBtn('o:'+id)}</div></div>
   <div id="airln"></div>${SY(clean(syn))}<h2>Daftar Episode</h2>${eps.length?`<div class="eo">${eps.map(e=>`<a href="#/o/e/${enc(e.episodeId)}"><b>Episode ${E(e.eps)}</b><small>${E(e.date||'')}</small></a>`).join('')}</div>`:'<div class="msg">Belum ada episode.</div>'}`;
   bindFav('o:'+id,{t:d.title,c:d.poster,h:'#/o/d/'+enc(id)});
   otaDetailAir(d);
@@ -724,6 +785,7 @@ async function vOtaEp(id){
   app.innerHTML=SK;const o=await otakuData();
   let anime=null,aid=null;
   for(const k in o.detail){if((o.detail[k].episodeList||[]).some(e=>e.episodeId===id)){anime=o.detail[k];aid=k;break}}
+  if(!anime){const f=findOtaByEp(id);if(f){anime=f.d;aid=f.id}}
   const list=anime?anime.episodeList.slice().sort((a,b)=>(+a.eps||0)-(+b.eps||0)):[];
   const i=list.findIndex(e=>e.episodeId===id),cur=list[i];
   const title=cur?cur.title:id.replace(/-sub-indo$/,'').replace(/-/g,' ');
@@ -733,6 +795,7 @@ async function vOtaEp(id){
   <div class="bar" style="justify-content:space-between">${prev?`<a class="btn s" href="#/o/e/${enc(prev.episodeId)}">← Eps ${E(prev.eps)}</a>`:'<span></span>'}${next?`<a class="btn" href="#/o/e/${enc(next.episodeId)}">Eps ${E(next.eps)} →</a>`:'<span></span>'}</div>
   ${list.length?`<h2>Episode lain</h2><div class="eo">${list.slice().reverse().map(e=>`<a href="#/o/e/${enc(e.episodeId)}"${e.episodeId===id?' style="border-color:var(--ac)"':''}><b>Episode ${E(e.eps)}</b></a>`).join('')}</div>`:''}`;
   window.nextEp=()=>{if(cfg().an!==false&&next)location.hash='#/o/e/'+enc(next.episodeId)};
+  if(anime&&aid&&cur&&+cur.eps>0){const en=+cur.eps,k='o:'+aid,h0=hist()[k]||{};saveHist(k,{t:anime.title,c:anime.poster,e:en,oe:id,pos:h0.pos&&h0.pos.e===en?h0.pos:null});window.vidKey={id:k,ep:en}}
   await playSankaEpisode(id,title,'ota');
 }
 
@@ -958,6 +1021,7 @@ function vSettings(){
     ${sw('s-ds',!!c.ds,'Hemat data','Memuat gambar dengan kualitas lebih rendah')}
     ${sw('s-ip',!!c.ip,'Muat gambar lewat server','Aktifkan jika gambar tidak muncul')}
   </div>
+  ${installEv&&!matchMedia('(display-mode: standalone)').matches?'<div class="st-sec">Aplikasi</div><div class="st-box"><button class="st-act" id="s-inst">Pasang di layar utama</button></div>':''}
   <div class="st-sec">Data</div>
   <div class="st-box">
     <button class="st-act" id="s-exp">Ekspor cadangan</button>
@@ -974,6 +1038,7 @@ function vSettings(){
   const bindSw=(id,key)=>{$('#'+id).onclick=e=>{const b=e.currentTarget,v=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',v);saveCfg({[key]:v});ok()}};
   const bindSg=(id,key)=>{$('#'+id).onclick=e=>{const b=e.target.closest('button');if(!b)return;$('#'+id).querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));saveCfg({[key]:b.dataset.v});ok()}};
   bindSg('s-ml','ml');bindSg('s-rm','rm');
+  const ib=$('#s-inst');if(ib)ib.onclick=async()=>{try{installEv.prompt();await installEv.userChoice}catch{}installEv=null;ib.remove()};
   bindSw('s-an','an');bindSw('s-mf','mf');bindSw('s-ac','ac');bindSw('s-ds','ds');bindSw('s-ip','ip');
   const KEYS={k:'k',kw:'kw',kf:'kf',kr:'kr'};
   $('#s-exp').onclick=()=>{
