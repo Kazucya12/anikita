@@ -2,6 +2,24 @@
 
 Kumori adalah situs katalog anime dan manga ringan berbasis HTML/JavaScript yang dapat di-deploy ke Vercel.
 
+## Unduh APK (Android)
+APK dibuat otomatis oleh GitHub Actions setiap kali kamu push ke branch `main` (file `.github/workflows/build-apk.yml`).
+1. Upload seluruh isi folder ini ke repository GitHub (termasuk folder `.github/` dan `android-wrapper/`).
+2. Buka tab **Actions** dan tunggu workflow **Build APK** selesai (sekitar 5–8 menit). Bisa juga dijalankan manual lewat **Run workflow**.
+3. Buka tab **Releases** di repository lalu unduh **kumori.apk**. Tautan tetap untuk rilis terbaru: `https://github.com/USERNAME/NAMA-REPO/releases/latest/download/kumori.apk`
+4. Di HP, buka file APK dan izinkan pemasangan dari sumber ini.
+
+Catatan:
+- APK membungkus situs `https://anikita.vercel.app` (ubah di `android-wrapper/capacitor.config.json` bila domainnya berbeda), jadi pembaruan situs langsung tampil tanpa pasang ulang APK. Butuh internet.
+- APK ditandatangani dengan `android-wrapper/kumori.keystore` yang sama di setiap build, sehingga versi baru bisa langsung menimpa yang lama. Keystore ini untuk pemasangan manual (sideload), bukan untuk Play Store; simpan keystore sendiri bila suatu saat ingin merilis ke Play Store.
+
+## Fitur pemutar
+- Peringkat server: server yang paling sering berhasil dicoba lebih dulu (Pengaturan → Reset peringkat server untuk mengulang).
+- Prefetch: saat tontonan mencapai ±80%, server episode berikutnya dimuat lebih dulu.
+- Kualitas HLS (Auto/360p/720p/...), kecepatan putar, Picture-in-Picture, tombol ±10 detik dan Lewati intro (+85 detik).
+- Ketuk dua kali di sisi kiri/kanan video untuk mundur/maju 10 detik; ketuk sekali untuk putar/jeda. Papan ketik: ← → (±10 dtk), spasi, F (layar penuh), P (PiP).
+- Animasi splash saat dibuka, transisi halaman maju/mundur, dan kartu muncul bertahap. Animasi otomatis diredam bila perangkat mengaktifkan "kurangi gerakan".
+
 ## Deploy ke Vercel
 1. Extract ZIP ini.
 2. Upload seluruh isi folder `anikita-main` ke repository GitHub.
